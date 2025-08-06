@@ -1,11 +1,13 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useKV } from '@github/spark/hooks'
 
 interface PhotoFile {
@@ -43,6 +45,8 @@ function PhotoSorter() {
   const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('upload')
   const [draggedCategory, setDraggedCategory] = React.useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
+  const [selectedPhotos, setSelectedPhotos] = React.useState<string[]>([])
+  const [bulkActionCategory, setBulkActionCategory] = React.useState<string>('')
 
   // Mock analysis of existing folder structure
   const analyzeExistingStructure = async (files: FileList) => {
@@ -107,6 +111,7 @@ function PhotoSorter() {
     
     setPhotos((current) => [...current, ...newPhotos])
     setDuplicates(duplicatePhotos)
+    setSelectedPhotos([]) // Clear selections when new photos are added
     
     if (duplicatePhotos.length > 0) {
       setCurrentStep('review')
@@ -150,6 +155,7 @@ function PhotoSorter() {
   const removeDuplicate = (photoId: string) => {
     setPhotos((current) => current.filter(p => p.id !== photoId))
     setDuplicates((current) => current.filter(p => p.id !== photoId))
+    setSelectedPhotos((current) => current.filter(id => id !== photoId)) // Remove from selection if selected
   }
 
   // Handle drag and drop for categories
@@ -202,6 +208,43 @@ function PhotoSorter() {
   const handleCategoryDragEnd = () => {
     setDraggedCategory(null)
     setDragOverIndex(null)
+  }
+
+  // Bulk selection handlers
+  const togglePhotoSelection = (photoId: string) => {
+    setSelectedPhotos((current) => 
+      current.includes(photoId) 
+        ? current.filter(id => id !== photoId)
+        : [...current, photoId]
+    )
+  }
+
+  const selectAllPhotos = () => {
+    setSelectedPhotos(photos.map(photo => photo.id))
+  }
+
+  const deselectAllPhotos = () => {
+    setSelectedPhotos([])
+  }
+
+  const deleteSelectedPhotos = () => {
+    setPhotos((current) => current.filter(photo => !selectedPhotos.includes(photo.id)))
+    setDuplicates((current) => current.filter(duplicate => !selectedPhotos.includes(duplicate.id)))
+    setSelectedPhotos([])
+  }
+
+  const moveSelectedPhotos = (categoryName: string) => {
+    if (!categoryName) return
+    
+    setPhotos((current) => 
+      current.map(photo => 
+        selectedPhotos.includes(photo.id) 
+          ? { ...photo, suggestedCategory: categoryName }
+          : photo
+      )
+    )
+    setSelectedPhotos([])
+    setBulkActionCategory('')
   }
 
   const FileDropZone = ({ onDrop, children }: { onDrop: (files: FileList) => void, children: React.ReactNode }) => (
@@ -366,23 +409,112 @@ function PhotoSorter() {
         {photos.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Photos ({photos.length})</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Photos ({photos.length})</CardTitle>
+                
+                {/* Bulk Actions Controls */}
+                <div className="flex items-center gap-4">
+                  {selectedPhotos.length > 0 && (
+                    <>
+                      <Badge variant="secondary">
+                        {selectedPhotos.length} selected
+                      </Badge>
+                      
+                      <div className="flex items-center gap-2">
+                        <Select value={bulkActionCategory} onValueChange={setBulkActionCategory}>
+                          <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Move to..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.name} value={category.name}>
+                                <div className="flex items-center gap-2">
+                                  <FolderOpen className="w-4 h-4" />
+                                  {category.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        
+                        <Button 
+                          size="sm" 
+                          onClick={() => moveSelectedPhotos(bulkActionCategory)}
+                          disabled={!bulkActionCategory}
+                        >
+                          Move
+                        </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={deleteSelectedPhotos}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={deselectAllPhotos}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Clear
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={selectedPhotos.length === photos.length ? deselectAllPhotos : selectAllPhotos}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      {selectedPhotos.length === photos.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {photos.map((photo) => (
                   <div key={photo.id} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                    {/* Selection Checkbox */}
+                    <div className="absolute top-2 right-2 z-10">
+                      <Checkbox
+                        checked={selectedPhotos.includes(photo.id)}
+                        onCheckedChange={() => togglePhotoSelection(photo.id)}
+                        className="bg-white/80 backdrop-blur-sm border-white"
+                      />
+                    </div>
+                    
+                    <div 
+                      className={`aspect-square rounded-lg overflow-hidden bg-muted transition-all duration-200 ${
+                        selectedPhotos.includes(photo.id) 
+                          ? 'ring-2 ring-primary ring-offset-2' 
+                          : ''
+                      }`}
+                      onClick={() => togglePhotoSelection(photo.id)}
+                    >
                       <img
                         src={photo.dataUrl}
                         alt={photo.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-pointer"
                       />
                     </div>
+                    
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-2">
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="secondary">
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
@@ -398,11 +530,13 @@ function PhotoSorter() {
                         </DialogContent>
                       </Dialog>
                     </div>
+                    
                     {photo.suggestedCategory && (
                       <Badge className="absolute top-2 left-2" variant="secondary">
                         {photo.suggestedCategory}
                       </Badge>
                     )}
+                    
                     <div className="mt-1">
                       <p className="text-xs truncate">{photo.name}</p>
                     </div>
