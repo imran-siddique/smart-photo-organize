@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +41,8 @@ function PhotoSorter() {
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [duplicates, setDuplicates] = useKV<PhotoFile[]>("duplicates", [])
   const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('upload')
+  const [draggedCategory, setDraggedCategory] = React.useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
 
   // Mock analysis of existing folder structure
   const analyzeExistingStructure = async (files: FileList) => {
@@ -150,6 +152,58 @@ function PhotoSorter() {
     setDuplicates((current) => current.filter(p => p.id !== photoId))
   }
 
+  // Handle drag and drop for categories
+  const handleCategoryDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    setDraggedCategory(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleCategoryDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIndex(index)
+  }
+
+  const handleCategoryDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    // Only clear if we're leaving the entire drop zone, not just moving between children
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverIndex(null)
+    }
+  }
+
+  const handleCategoryDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault()
+    
+    if (draggedCategory === null || draggedCategory === dropIndex) {
+      setDraggedCategory(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    setCategories((current) => {
+      const newCategories = [...current]
+      const draggedItem = newCategories[draggedCategory]
+      
+      // Remove dragged item
+      newCategories.splice(draggedCategory, 1)
+      
+      // Insert at new position
+      const actualDropIndex = draggedCategory < dropIndex ? dropIndex - 1 : dropIndex
+      newCategories.splice(actualDropIndex, 0, draggedItem)
+      
+      return newCategories
+    })
+
+    setDraggedCategory(null)
+    setDragOverIndex(null)
+  }
+
+  const handleCategoryDragEnd = () => {
+    setDraggedCategory(null)
+    setDragOverIndex(null)
+  }
+
   const FileDropZone = ({ onDrop, children }: { onDrop: (files: FileList) => void, children: React.ReactNode }) => (
     <div
       className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
@@ -235,14 +289,37 @@ function PhotoSorter() {
         {analysis && currentStep !== 'upload' && (
           <Card>
             <CardHeader>
-              <CardTitle>Learned Categories ({categories.length})</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Learned Categories ({categories.length})</span>
+                <Badge variant="outline" className="text-xs">
+                  Drag to reorder
+                </Badge>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {categories.map((category, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-2">
+                  <div
+                    key={`${category.name}-${index}`}
+                    className={`border rounded-lg p-4 space-y-2 cursor-move transition-all duration-200 ${
+                      draggedCategory === index 
+                        ? 'opacity-50 scale-95' 
+                        : dragOverIndex === index 
+                          ? 'border-primary shadow-md scale-105' 
+                          : 'hover:border-accent hover:shadow-sm'
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleCategoryDragStart(e, index)}
+                    onDragOver={(e) => handleCategoryDragOver(e, index)}
+                    onDragLeave={handleCategoryDragLeave}
+                    onDrop={(e) => handleCategoryDrop(e, index)}
+                    onDragEnd={handleCategoryDragEnd}
+                  >
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{category.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <DotsSixVertical className="w-4 h-4 text-muted-foreground" />
+                        <h3 className="font-medium">{category.name}</h3>
+                      </div>
                       <Badge variant="secondary">{category.count} photos</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{category.pattern}</p>
