@@ -10,159 +10,127 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useKV } from '@github/spark/hooks'
-
-interface PhotoFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  lastModified: number
-  dataUrl: string
-  suggestedCategory?: string
-  isDuplicate?: boolean
-  duplicateOf?: string
-}
-
-interface Category {
-  name: string
-  path: string
-  count: number
-  pattern: string
-}
-
-interface AnalysisResult {
-  categories: Category[]
-  totalPhotos: number
-  duplicates: string[]
-}
+import { apiService, PhotoDto, CategoryDto, API_BASE_URL } from '@/services/api'
+import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
-  const [photos, setPhotos] = useKV<PhotoFile[]>("photos", [])
-  const [categories, setCategories] = useKV<Category[]>("categories", [])
-  const [analysis, setAnalysis] = useKV<AnalysisResult | null>("analysis", null)
+  const [photos, setPhotos] = React.useState<PhotoDto[]>([])
+  const [categories, setCategories] = React.useState<CategoryDto[]>([])
+  const [duplicates, setDuplicates] = React.useState<PhotoDto[]>([])
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
-  const [duplicates, setDuplicates] = useKV<PhotoFile[]>("duplicates", [])
-  const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('upload')
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('sort')
   const [draggedCategory, setDraggedCategory] = React.useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
-  const [selectedPhotos, setSelectedPhotos] = React.useState<string[]>([])
+  const [selectedPhotos, setSelectedPhotos] = React.useState<number[]>([])
   const [bulkActionCategory, setBulkActionCategory] = React.useState<string>('')
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = React.useState(false)
   const [newCategoryName, setNewCategoryName] = React.useState('')
   const [newCategoryPattern, setNewCategoryPattern] = React.useState('')
-  const [editingCategory, setEditingCategory] = React.useState<{ index: number; name: string; pattern: string } | null>(null)
+  const [editingCategory, setEditingCategory] = React.useState<{ id: number; name: string; pattern: string } | null>(null)
   const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
 
-  // Mock analysis of existing folder structure
-  const analyzeExistingStructure = async (files: FileList) => {
-    setIsAnalyzing(true)
-    
-    // Simulate analysis delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Mock pattern recognition from file names/paths
-    const mockCategories: Category[] = [
-      { name: "Events", path: "Events/", count: 45, pattern: "contains: party, wedding, birthday, event" },
-      { name: "Nature", path: "Nature/", count: 32, pattern: "contains: landscape, tree, flower, outdoor" },
-      { name: "Family", path: "Family/", count: 78, pattern: "contains: family, kids, parents, relatives" },
-      { name: "Travel", path: "Travel/", count: 56, pattern: "contains: vacation, trip, city, landmark" },
-      { name: "Portraits", path: "Portraits/", count: 23, pattern: "contains: headshot, portrait, person, face" }
-    ]
-    
-    const mockAnalysis: AnalysisResult = {
-      categories: mockCategories,
-      totalPhotos: 234,
-      duplicates: []
+  // Load data on component mount
+  React.useEffect(() => {
+    loadCategories()
+    loadPhotos()
+    loadDuplicates()
+  }, [])
+
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await apiService.getCategories()
+      setCategories(categoriesData)
+      if (categoriesData.length > 0 && currentStep === 'upload') {
+        setCurrentStep('sort')
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error)
+      toast.error('Failed to load categories')
     }
-    
-    setCategories(mockCategories)
-    setAnalysis(mockAnalysis)
-    setIsAnalyzing(false)
-    setCurrentStep('sort')
+  }
+
+  const loadPhotos = async () => {
+    try {
+      setIsLoading(true)
+      const photosData = await apiService.getPhotos()
+      setPhotos(photosData)
+    } catch (error) {
+      console.error('Failed to load photos:', error)
+      toast.error('Failed to load photos')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadDuplicates = async () => {
+    try {
+      const duplicatesData = await apiService.getDuplicates()
+      setDuplicates(duplicatesData)
+      if (duplicatesData.length > 0) {
+        setCurrentStep('review')
+      }
+    } catch (error) {
+      console.error('Failed to load duplicates:', error)
+    }
   }
 
   // Handle file uploads
   const handleFileUpload = async (files: FileList) => {
     setUploadProgress(0)
-    const newPhotos: PhotoFile[] = []
+    const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'))
     
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (!file.type.startsWith('image/')) continue
-      
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target?.result as string)
-        reader.readAsDataURL(file)
-      })
-      
-      const photo: PhotoFile = {
-        id: `photo_${Date.now()}_${i}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-        dataUrl,
-        suggestedCategory: suggestCategory(file.name)
-      }
-      
-      newPhotos.push(photo)
-      setUploadProgress((i + 1) / files.length * 100)
+    if (fileArray.length === 0) {
+      toast.error('No valid image files selected')
+      return
     }
-    
-    // Detect duplicates
-    const allPhotos = [...photos, ...newPhotos]
-    const duplicatePhotos = detectDuplicates(allPhotos)
-    
-    setPhotos((current) => [...current, ...newPhotos])
-    setDuplicates(duplicatePhotos)
-    setSelectedPhotos([]) // Clear selections when new photos are added
-    
-    if (duplicatePhotos.length > 0) {
-      setCurrentStep('review')
-    }
-  }
 
-  // Simple category suggestion based on filename
-  const suggestCategory = (filename: string): string => {
-    const name = filename.toLowerCase()
-    
-    if (name.includes('wedding') || name.includes('party') || name.includes('birthday')) return 'Events'
-    if (name.includes('landscape') || name.includes('nature') || name.includes('flower')) return 'Nature'
-    if (name.includes('family') || name.includes('kid') || name.includes('mom') || name.includes('dad')) return 'Family'
-    if (name.includes('travel') || name.includes('vacation') || name.includes('trip')) return 'Travel'
-    if (name.includes('portrait') || name.includes('headshot')) return 'Portraits'
-    
-    return 'Unsorted'
-  }
-
-  // Simple duplicate detection based on name and size
-  const detectDuplicates = (photoList: PhotoFile[]): PhotoFile[] => {
-    const duplicates: PhotoFile[] = []
-    const seen = new Map<string, PhotoFile>()
-    
-    photoList.forEach(photo => {
-      const key = `${photo.name}_${photo.size}`
-      if (seen.has(key)) {
-        duplicates.push({
-          ...photo,
-          isDuplicate: true,
-          duplicateOf: seen.get(key)?.id
-        })
+    try {
+      if (fileArray.length === 1) {
+        // Single file upload
+        const file = fileArray[0]
+        await apiService.uploadPhoto(file)
+        setUploadProgress(100)
+        toast.success('Photo uploaded successfully')
       } else {
-        seen.set(key, photo)
+        // Multiple file upload
+        const result = await apiService.uploadMultiplePhotos(fileArray)
+        setUploadProgress(100)
+        
+        if (result.errors.length > 0) {
+          result.errors.forEach(error => toast.error(error))
+        }
+        
+        if (result.photos.length > 0) {
+          toast.success(`${result.photos.length} photos uploaded successfully`)
+        }
       }
-    })
-    
-    return duplicates
+      
+      // Reload data
+      await loadPhotos()
+      await loadDuplicates()
+      await loadCategories() // Refresh photo counts
+      
+    } catch (error) {
+      console.error('Upload failed:', error)
+      toast.error('Upload failed: ' + (error as Error).message)
+    } finally {
+      setUploadProgress(0)
+    }
   }
 
-  const removeDuplicate = (photoId: string) => {
-    setPhotos((current) => current.filter(p => p.id !== photoId))
-    setDuplicates((current) => current.filter(p => p.id !== photoId))
-    setSelectedPhotos((current) => current.filter(id => id !== photoId)) // Remove from selection if selected
+  const removeDuplicate = async (photoId: number) => {
+    try {
+      await apiService.removeDuplicate(photoId)
+      setPhotos((current) => current.filter(p => p.id !== photoId))
+      setDuplicates((current) => current.filter(p => p.id !== photoId))
+      setSelectedPhotos((current) => current.filter(id => id !== photoId))
+      toast.success('Duplicate removed')
+    } catch (error) {
+      console.error('Failed to remove duplicate:', error)
+      toast.error('Failed to remove duplicate')
+    }
   }
 
   // Handle drag and drop for categories
@@ -179,13 +147,12 @@ function PhotoSorter() {
 
   const handleCategoryDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    // Only clear if we're leaving the entire drop zone, not just moving between children
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverIndex(null)
     }
   }
 
-  const handleCategoryDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+  const handleCategoryDrop = async (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
     e.preventDefault()
     
     if (draggedCategory === null || draggedCategory === dropIndex) {
@@ -194,8 +161,8 @@ function PhotoSorter() {
       return
     }
 
-    setCategories((current) => {
-      const newCategories = [...current]
+    try {
+      const newCategories = [...categories]
       const draggedItem = newCategories[draggedCategory]
       
       // Remove dragged item
@@ -205,11 +172,23 @@ function PhotoSorter() {
       const actualDropIndex = draggedCategory < dropIndex ? dropIndex - 1 : dropIndex
       newCategories.splice(actualDropIndex, 0, draggedItem)
       
-      return newCategories
-    })
-
-    setDraggedCategory(null)
-    setDragOverIndex(null)
+      // Update sort orders
+      const reorderData = newCategories.map((category, index) => ({
+        id: category.id,
+        sortOrder: index + 1
+      }))
+      
+      await apiService.reorderCategories(reorderData)
+      setCategories(newCategories)
+      toast.success('Categories reordered')
+      
+    } catch (error) {
+      console.error('Failed to reorder categories:', error)
+      toast.error('Failed to reorder categories')
+    } finally {
+      setDraggedCategory(null)
+      setDragOverIndex(null)
+    }
   }
 
   const handleCategoryDragEnd = () => {
@@ -218,7 +197,7 @@ function PhotoSorter() {
   }
 
   // Bulk selection handlers
-  const togglePhotoSelection = (photoId: string) => {
+  const togglePhotoSelection = (photoId: number) => {
     setSelectedPhotos((current) => 
       current.includes(photoId) 
         ? current.filter(id => id !== photoId)
@@ -234,114 +213,131 @@ function PhotoSorter() {
     setSelectedPhotos([])
   }
 
-  const deleteSelectedPhotos = () => {
-    setPhotos((current) => current.filter(photo => !selectedPhotos.includes(photo.id)))
-    setDuplicates((current) => current.filter(duplicate => !selectedPhotos.includes(duplicate.id)))
-    setSelectedPhotos([])
+  const deleteSelectedPhotos = async () => {
+    try {
+      await apiService.deleteMultiplePhotos(selectedPhotos)
+      await loadPhotos()
+      await loadCategories()
+      setSelectedPhotos([])
+      toast.success(`${selectedPhotos.length} photos deleted`)
+    } catch (error) {
+      console.error('Failed to delete photos:', error)
+      toast.error('Failed to delete photos')
+    }
   }
 
-  const moveSelectedPhotos = (categoryName: string) => {
+  const moveSelectedPhotos = async (categoryName: string) => {
     if (!categoryName) return
     
-    setPhotos((current) => 
-      current.map(photo => 
-        selectedPhotos.includes(photo.id) 
-          ? { ...photo, suggestedCategory: categoryName }
-          : photo
-      )
-    )
-    setSelectedPhotos([])
-    setBulkActionCategory('')
+    const category = categories.find(c => c.name === categoryName)
+    if (!category) return
+
+    try {
+      await apiService.updateMultiplePhotosCategory(selectedPhotos, category.id)
+      await loadPhotos()
+      await loadCategories()
+      setSelectedPhotos([])
+      setBulkActionCategory('')
+      toast.success(`${selectedPhotos.length} photos moved to ${categoryName}`)
+    } catch (error) {
+      console.error('Failed to move photos:', error)
+      toast.error('Failed to move photos')
+    }
   }
 
   // Create new category
-  const createNewCategory = () => {
+  const createNewCategory = async () => {
     if (!newCategoryName.trim()) return
     
-    const newCategory: Category = {
-      name: newCategoryName.trim(),
-      path: `${newCategoryName.trim()}/`,
-      count: selectedPhotos.length,
-      pattern: newCategoryPattern.trim() || `Custom category: ${newCategoryName.trim()}`
+    try {
+      const maxSortOrder = Math.max(0, ...categories.map(c => c.sortOrder))
+      
+      const newCategory = await apiService.createCategory({
+        name: newCategoryName.trim(),
+        path: `${newCategoryName.trim()}/`,
+        pattern: newCategoryPattern.trim() || `Custom category: ${newCategoryName.trim()}`,
+        sortOrder: maxSortOrder + 1
+      })
+      
+      setCategories((current) => [...current, newCategory])
+      
+      // Move selected photos to new category
+      if (selectedPhotos.length > 0) {
+        await apiService.updateMultiplePhotosCategory(selectedPhotos, newCategory.id)
+        await loadPhotos()
+        setSelectedPhotos([])
+        toast.success(`Category created and ${selectedPhotos.length} photos moved`)
+      } else {
+        toast.success('Category created successfully')
+      }
+      
+      // Reset form
+      setNewCategoryName('')
+      setNewCategoryPattern('')
+      setIsCreateCategoryOpen(false)
+      
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      toast.error('Failed to create category')
     }
-    
-    setCategories((current) => [...current, newCategory])
-    
-    // Move selected photos to new category
-    if (selectedPhotos.length > 0) {
-      setPhotos((current) => 
-        current.map(photo => 
-          selectedPhotos.includes(photo.id) 
-            ? { ...photo, suggestedCategory: newCategoryName.trim() }
-            : photo
-        )
-      )
-      setSelectedPhotos([])
-    }
-    
-    // Reset form
-    setNewCategoryName('')
-    setNewCategoryPattern('')
-    setIsCreateCategoryOpen(false)
   }
 
-  const deleteCategory = (categoryName: string) => {
-    setCategories((current) => current.filter(cat => cat.name !== categoryName))
-    
-    // Move photos from deleted category to "Unsorted"
-    setPhotos((current) => 
-      current.map(photo => 
-        photo.suggestedCategory === categoryName 
-          ? { ...photo, suggestedCategory: 'Unsorted' }
-          : photo
-      )
-    )
+  const deleteCategory = async (categoryId: number) => {
+    try {
+      await apiService.deleteCategory(categoryId)
+      await loadCategories()
+      await loadPhotos()
+      toast.success('Category deleted')
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      toast.error('Failed to delete category')
+    }
   }
 
   // Edit category functionality
-  const openEditCategory = (index: number) => {
-    const category = categories[index]
+  const openEditCategory = (categoryId: number) => {
+    const category = categories.find(c => c.id === categoryId)
+    if (!category) return
+    
     setEditingCategory({
-      index,
+      id: category.id,
       name: category.name,
       pattern: category.pattern
     })
     setIsEditCategoryOpen(true)
   }
 
-  const saveEditCategory = () => {
+  const saveEditCategory = async () => {
     if (!editingCategory || !editingCategory.name.trim()) return
     
-    const oldCategoryName = categories[editingCategory.index].name
-    const newCategoryName = editingCategory.name.trim()
-    
-    // Update category
-    setCategories((current) => 
-      current.map((cat, index) => 
-        index === editingCategory.index 
-          ? { 
-              ...cat, 
-              name: newCategoryName,
-              pattern: editingCategory.pattern.trim() || `Custom category: ${newCategoryName}`
-            }
-          : cat
-      )
-    )
-    
-    // Update photos that belong to this category
-    if (oldCategoryName !== newCategoryName) {
-      setPhotos((current) => 
-        current.map(photo => 
-          photo.suggestedCategory === oldCategoryName 
-            ? { ...photo, suggestedCategory: newCategoryName }
-            : photo
+    try {
+      const category = categories.find(c => c.id === editingCategory.id)
+      if (!category) return
+      
+      const updatedCategory = await apiService.updateCategory(editingCategory.id, {
+        name: editingCategory.name.trim(),
+        path: `${editingCategory.name.trim()}/`,
+        pattern: editingCategory.pattern.trim() || `Custom category: ${editingCategory.name.trim()}`,
+        sortOrder: category.sortOrder
+      })
+      
+      setCategories((current) => 
+        current.map(cat => 
+          cat.id === editingCategory.id ? updatedCategory : cat
         )
       )
+      
+      // Reload photos to reflect category name changes
+      await loadPhotos()
+      
+      setEditingCategory(null)
+      setIsEditCategoryOpen(false)
+      toast.success('Category updated successfully')
+      
+    } catch (error) {
+      console.error('Failed to update category:', error)
+      toast.error('Failed to update category')
     }
-    
-    // Close edit dialog
-    setEditingCategory(null)
-    setIsEditCategoryOpen(false)
   }
 
   const cancelEditCategory = () => {
@@ -375,6 +371,7 @@ function PhotoSorter() {
 
   return (
     <div className="min-h-screen bg-background p-6">
+      <Toaster richColors position="top-right" />
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -404,34 +401,26 @@ function PhotoSorter() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Folder className="w-5 h-5" />
-                Analyze Existing Structure
+                Getting Started
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <FileDropZone onDrop={(files) => analyzeExistingStructure(files)}>
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">Upload your existing photo folders</p>
-                <p className="text-muted-foreground mb-4">
-                  Drop your organized photo folders here so we can learn your categorization patterns
-                </p>
-                <Button>Select Folders</Button>
-              </FileDropZone>
-              
-              {isAnalyzing && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <span>Analyzing folder structure...</span>
-                  </div>
-                  <Progress value={75} className="w-full" />
+              <div className="text-center space-y-4">
+                <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
+                <div>
+                  <p className="text-lg font-medium mb-2">Welcome to Photo Sorter</p>
+                  <p className="text-muted-foreground mb-4">
+                    Your intelligent photo organization system is ready. Start by uploading some photos below.
+                  </p>
                 </div>
-              )}
+                <Button onClick={() => setCurrentStep('sort')}>Get Started</Button>
+              </div>
             </CardContent>
           </Card>
         )}
 
         {/* Categories Display */}
-        {analysis && currentStep !== 'upload' && (
+        {categories.length > 0 && currentStep !== 'upload' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -588,7 +577,7 @@ function PhotoSorter() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {categories.map((category, index) => (
                   <div
-                    key={`${category.name}-${index}`}
+                    key={`${category.id}-${index}`}
                     className={`border rounded-lg p-4 space-y-2 cursor-move transition-all duration-200 group ${
                       draggedCategory === index 
                         ? 'opacity-50 scale-95' 
@@ -609,11 +598,11 @@ function PhotoSorter() {
                         <h3 className="font-medium">{category.name}</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{category.count} photos</Badge>
+                        <Badge variant="secondary">{category.photoCount} photos</Badge>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => openEditCategory(index)}
+                          onClick={() => openEditCategory(category.id)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <PencilSimple className="w-4 h-4" />
@@ -621,7 +610,7 @@ function PhotoSorter() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => deleteCategory(category.name)}
+                          onClick={() => deleteCategory(category.id)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -690,7 +679,7 @@ function PhotoSorter() {
                           </SelectTrigger>
                           <SelectContent>
                             {categories.map((category) => (
-                              <SelectItem key={category.name} value={category.name}>
+                              <SelectItem key={category.id} value={category.name}>
                                 <div className="flex items-center gap-2">
                                   <FolderOpen className="w-4 h-4" />
                                   {category.name}
@@ -776,7 +765,7 @@ function PhotoSorter() {
                       onClick={() => togglePhotoSelection(photo.id)}
                     >
                       <img
-                        src={photo.dataUrl}
+                        src={`${API_BASE_URL}/photos/${photo.id}/file`}
                         alt={photo.name}
                         className="w-full h-full object-cover cursor-pointer"
                       />
@@ -797,18 +786,22 @@ function PhotoSorter() {
                           <DialogHeader>
                             <DialogTitle>{photo.name}</DialogTitle>
                           </DialogHeader>
-                          <img src={photo.dataUrl} alt={photo.name} className="w-full h-auto rounded-lg" />
+                          <img 
+                            src={`${API_BASE_URL}/photos/${photo.id}/file`} 
+                            alt={photo.name} 
+                            className="w-full h-auto rounded-lg" 
+                          />
                           <div className="space-y-2">
                             <p><strong>Size:</strong> {(photo.size / 1024 / 1024).toFixed(2)} MB</p>
-                            <p><strong>Suggested Category:</strong> {photo.suggestedCategory}</p>
+                            <p><strong>Category:</strong> {photo.categoryName || 'Uncategorized'}</p>
                           </div>
                         </DialogContent>
                       </Dialog>
                     </div>
                     
-                    {photo.suggestedCategory && (
+                    {photo.categoryName && (
                       <Badge className="absolute top-2 left-2" variant="secondary">
-                        {photo.suggestedCategory}
+                        {photo.categoryName}
                       </Badge>
                     )}
                     
@@ -842,7 +835,7 @@ function PhotoSorter() {
                 {duplicates.map((duplicate) => (
                   <div key={duplicate.id} className="flex items-center space-x-4 p-4 border rounded-lg">
                     <img
-                      src={duplicate.dataUrl}
+                      src={`${API_BASE_URL}/photos/${duplicate.id}/file`}
                       alt={duplicate.name}
                       className="w-16 h-16 object-cover rounded"
                     />
@@ -870,11 +863,11 @@ function PhotoSorter() {
         {/* Actions */}
         {photos.length > 0 && (
           <div className="flex justify-center space-x-4">
-            <Button onClick={() => setCurrentStep('upload')} variant="outline">
+            <Button onClick={() => setCurrentStep('sort')} variant="outline">
               <Upload className="w-4 h-4 mr-2" />
               Upload More
             </Button>
-            <Button>
+            <Button disabled>
               <Download className="w-4 h-4 mr-2" />
               Export Organized
             </Button>
