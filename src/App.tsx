@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +52,8 @@ function PhotoSorter() {
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = React.useState(false)
   const [newCategoryName, setNewCategoryName] = React.useState('')
   const [newCategoryPattern, setNewCategoryPattern] = React.useState('')
+  const [editingCategory, setEditingCategory] = React.useState<{ index: number; name: string; pattern: string } | null>(null)
+  const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
 
   // Mock analysis of existing folder structure
   const analyzeExistingStructure = async (files: FileList) => {
@@ -296,6 +298,57 @@ function PhotoSorter() {
     )
   }
 
+  // Edit category functionality
+  const openEditCategory = (index: number) => {
+    const category = categories[index]
+    setEditingCategory({
+      index,
+      name: category.name,
+      pattern: category.pattern
+    })
+    setIsEditCategoryOpen(true)
+  }
+
+  const saveEditCategory = () => {
+    if (!editingCategory || !editingCategory.name.trim()) return
+    
+    const oldCategoryName = categories[editingCategory.index].name
+    const newCategoryName = editingCategory.name.trim()
+    
+    // Update category
+    setCategories((current) => 
+      current.map((cat, index) => 
+        index === editingCategory.index 
+          ? { 
+              ...cat, 
+              name: newCategoryName,
+              pattern: editingCategory.pattern.trim() || `Custom category: ${newCategoryName}`
+            }
+          : cat
+      )
+    )
+    
+    // Update photos that belong to this category
+    if (oldCategoryName !== newCategoryName) {
+      setPhotos((current) => 
+        current.map(photo => 
+          photo.suggestedCategory === oldCategoryName 
+            ? { ...photo, suggestedCategory: newCategoryName }
+            : photo
+        )
+      )
+    }
+    
+    // Close edit dialog
+    setEditingCategory(null)
+    setIsEditCategoryOpen(false)
+  }
+
+  const cancelEditCategory = () => {
+    setEditingCategory(null)
+    setIsEditCategoryOpen(false)
+  }
+
   const FileDropZone = ({ onDrop, children }: { onDrop: (files: FileList) => void, children: React.ReactNode }) => (
     <div
       className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
@@ -462,6 +515,72 @@ function PhotoSorter() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  
+                  {/* Edit Category Dialog */}
+                  <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <PencilSimple className="w-5 h-5" />
+                          Edit Category
+                        </DialogTitle>
+                      </DialogHeader>
+                      {editingCategory && (
+                        <div className="space-y-4 pt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-category-name">Category Name</Label>
+                            <Input
+                              id="edit-category-name"
+                              placeholder="Enter category name..."
+                              value={editingCategory.name}
+                              onChange={(e) => setEditingCategory({
+                                ...editingCategory,
+                                name: e.target.value
+                              })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  saveEditCategory()
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-category-pattern">Pattern Description</Label>
+                            <Input
+                              id="edit-category-pattern"
+                              placeholder="e.g., contains: vacation, beach, summer"
+                              value={editingCategory.pattern}
+                              onChange={(e) => setEditingCategory({
+                                ...editingCategory,
+                                pattern: e.target.value
+                              })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  saveEditCategory()
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="outline" 
+                              onClick={cancelEditCategory}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={saveEditCategory}
+                              disabled={!editingCategory.name.trim()}
+                            >
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -491,6 +610,14 @@ function PhotoSorter() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">{category.count} photos</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEditCategory(index)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <PencilSimple className="w-4 h-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
