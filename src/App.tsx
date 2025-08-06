@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useKV } from '@github/spark/hooks'
 
 interface PhotoFile {
@@ -47,6 +49,9 @@ function PhotoSorter() {
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
   const [selectedPhotos, setSelectedPhotos] = React.useState<string[]>([])
   const [bulkActionCategory, setBulkActionCategory] = React.useState<string>('')
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = React.useState(false)
+  const [newCategoryName, setNewCategoryName] = React.useState('')
+  const [newCategoryPattern, setNewCategoryPattern] = React.useState('')
 
   // Mock analysis of existing folder structure
   const analyzeExistingStructure = async (files: FileList) => {
@@ -247,6 +252,50 @@ function PhotoSorter() {
     setBulkActionCategory('')
   }
 
+  // Create new category
+  const createNewCategory = () => {
+    if (!newCategoryName.trim()) return
+    
+    const newCategory: Category = {
+      name: newCategoryName.trim(),
+      path: `${newCategoryName.trim()}/`,
+      count: selectedPhotos.length,
+      pattern: newCategoryPattern.trim() || `Custom category: ${newCategoryName.trim()}`
+    }
+    
+    setCategories((current) => [...current, newCategory])
+    
+    // Move selected photos to new category
+    if (selectedPhotos.length > 0) {
+      setPhotos((current) => 
+        current.map(photo => 
+          selectedPhotos.includes(photo.id) 
+            ? { ...photo, suggestedCategory: newCategoryName.trim() }
+            : photo
+        )
+      )
+      setSelectedPhotos([])
+    }
+    
+    // Reset form
+    setNewCategoryName('')
+    setNewCategoryPattern('')
+    setIsCreateCategoryOpen(false)
+  }
+
+  const deleteCategory = (categoryName: string) => {
+    setCategories((current) => current.filter(cat => cat.name !== categoryName))
+    
+    // Move photos from deleted category to "Unsorted"
+    setPhotos((current) => 
+      current.map(photo => 
+        photo.suggestedCategory === categoryName 
+          ? { ...photo, suggestedCategory: 'Unsorted' }
+          : photo
+      )
+    )
+  }
+
   const FileDropZone = ({ onDrop, children }: { onDrop: (files: FileList) => void, children: React.ReactNode }) => (
     <div
       className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
@@ -333,10 +382,87 @@ function PhotoSorter() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Learned Categories ({categories.length})</span>
-                <Badge variant="outline" className="text-xs">
-                  Drag to reorder
-                </Badge>
+                <span>Categories ({categories.length})</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    Drag to reorder
+                  </Badge>
+                  
+                  {/* Create Category Dialog */}
+                  <Dialog open={isCreateCategoryOpen} onOpenChange={setIsCreateCategoryOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <Plus className="w-4 h-4 mr-1" />
+                        New Category
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <FolderPlus className="w-5 h-5" />
+                          Create New Category
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="category-name">Category Name</Label>
+                          <Input
+                            id="category-name"
+                            placeholder="Enter category name..."
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                createNewCategory()
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="category-pattern">Pattern Description (Optional)</Label>
+                          <Input
+                            id="category-pattern"
+                            placeholder="e.g., contains: vacation, beach, summer"
+                            value={newCategoryPattern}
+                            onChange={(e) => setNewCategoryPattern(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                createNewCategory()
+                              }
+                            }}
+                          />
+                        </div>
+                        {selectedPhotos.length > 0 && (
+                          <Alert>
+                            <AlertDescription>
+                              {selectedPhotos.length} selected photos will be moved to this new category.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setIsCreateCategoryOpen(false)
+                              setNewCategoryName('')
+                              setNewCategoryPattern('')
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={createNewCategory}
+                            disabled={!newCategoryName.trim()}
+                          >
+                            Create Category
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -344,7 +470,7 @@ function PhotoSorter() {
                 {categories.map((category, index) => (
                   <div
                     key={`${category.name}-${index}`}
-                    className={`border rounded-lg p-4 space-y-2 cursor-move transition-all duration-200 ${
+                    className={`border rounded-lg p-4 space-y-2 cursor-move transition-all duration-200 group ${
                       draggedCategory === index 
                         ? 'opacity-50 scale-95' 
                         : dragOverIndex === index 
@@ -363,7 +489,17 @@ function PhotoSorter() {
                         <DotsSixVertical className="w-4 h-4 text-muted-foreground" />
                         <h3 className="font-medium">{category.name}</h3>
                       </div>
-                      <Badge variant="secondary">{category.count} photos</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{category.count} photos</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteCategory(category.name)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground">{category.pattern}</p>
                   </div>
@@ -434,15 +570,27 @@ function PhotoSorter() {
                                 </div>
                               </SelectItem>
                             ))}
+                            <SelectItem value="CREATE_NEW">
+                              <div className="flex items-center gap-2">
+                                <Plus className="w-4 h-4" />
+                                Create New Category...
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         
                         <Button 
                           size="sm" 
-                          onClick={() => moveSelectedPhotos(bulkActionCategory)}
+                          onClick={() => {
+                            if (bulkActionCategory === 'CREATE_NEW') {
+                              setIsCreateCategoryOpen(true)
+                            } else {
+                              moveSelectedPhotos(bulkActionCategory)
+                            }
+                          }}
                           disabled={!bulkActionCategory}
                         >
-                          Move
+                          {bulkActionCategory === 'CREATE_NEW' ? 'Create & Move' : 'Move'}
                         </Button>
                         
                         <Button 
