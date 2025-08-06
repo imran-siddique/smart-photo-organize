@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, ListChecks } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, ListChecks, TestTube } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { apiService, PhotoDto, CategoryDto, API_BASE_URL } from '@/services/api'
 import { toast, Toaster } from 'sonner'
+import { DuplicateDetectionTester } from '@/components/DuplicateDetectionTester'
 
 function PhotoSorter() {
   const [photos, setPhotos] = React.useState<PhotoDto[]>([])
@@ -49,6 +50,7 @@ function PhotoSorter() {
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<number[]>([])
   const [comparePhotos, setComparePhotos] = React.useState<PhotoDto[]>([])
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+  const [showTester, setShowTester] = React.useState(false)
 
   // Load data on component mount
   React.useEffect(() => {
@@ -964,6 +966,16 @@ function PhotoSorter() {
                 </CardTitle>
                 
                 <div className="flex items-center gap-2">
+                  {/* Testing Suite Button */}
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setShowTester(true)}
+                  >
+                    <TestTube className="w-4 h-4 mr-1" />
+                    Test Suite
+                  </Button>
+
                   {/* Duplicate Detection Settings Dialog */}
                   <Dialog open={duplicateDetectionOpen} onOpenChange={setDuplicateDetectionOpen}>
                     <DialogTrigger asChild>
@@ -1334,6 +1346,15 @@ function PhotoSorter() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Duplicate Detection Testing Suite */}
+        {showTester && (
+          <Card>
+            <CardContent className="p-6">
+              <DuplicateDetectionTester onClose={() => setShowTester(false)} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         {photos.length > 0 && (
