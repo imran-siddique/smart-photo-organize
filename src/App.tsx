@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple } from '@phosphor-icons/react'
+import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, ListChecks } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Slider } from '@/components/ui/slider'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { apiService, PhotoDto, CategoryDto, API_BASE_URL } from '@/services/api'
 import { toast, Toaster } from 'sonner'
 
@@ -17,9 +21,11 @@ function PhotoSorter() {
   const [photos, setPhotos] = React.useState<PhotoDto[]>([])
   const [categories, setCategories] = React.useState<CategoryDto[]>([])
   const [duplicates, setDuplicates] = React.useState<PhotoDto[]>([])
+  const [duplicateGroups, setDuplicateGroups] = React.useState<PhotoDto[][]>([])
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
+  const [isDetectingDuplicates, setIsDetectingDuplicates] = React.useState(false)
   const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('sort')
   const [draggedCategory, setDraggedCategory] = React.useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
@@ -31,11 +37,25 @@ function PhotoSorter() {
   const [editingCategory, setEditingCategory] = React.useState<{ id: number; name: string; pattern: string } | null>(null)
   const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
 
+  // Duplicate detection settings
+  const [duplicateDetectionOpen, setDuplicateDetectionOpen] = React.useState(false)
+  const [detectionSettings, setDetectionSettings] = React.useState({
+    similarityThreshold: 85,
+    checkFileSize: true,
+    checkFilename: true,
+    checkImageHash: true,
+    checkVisualSimilarity: false
+  })
+  const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<number[]>([])
+  const [comparePhotos, setComparePhotos] = React.useState<PhotoDto[]>([])
+  const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+
   // Load data on component mount
   React.useEffect(() => {
     loadCategories()
     loadPhotos()
     loadDuplicates()
+    loadDuplicateGroups()
   }, [])
 
   const loadCategories = async () => {
@@ -76,6 +96,15 @@ function PhotoSorter() {
     }
   }
 
+  const loadDuplicateGroups = async () => {
+    try {
+      const duplicateGroupsData = await apiService.getDuplicateGroups()
+      setDuplicateGroups(duplicateGroupsData)
+    } catch (error) {
+      console.error('Failed to load duplicate groups:', error)
+    }
+  }
+
   // Handle file uploads
   const handleFileUpload = async (files: FileList) => {
     setUploadProgress(0)
@@ -110,6 +139,7 @@ function PhotoSorter() {
       // Reload data
       await loadPhotos()
       await loadDuplicates()
+      await loadDuplicateGroups()
       await loadCategories() // Refresh photo counts
       
     } catch (error) {
@@ -126,10 +156,118 @@ function PhotoSorter() {
       setPhotos((current) => current.filter(p => p.id !== photoId))
       setDuplicates((current) => current.filter(p => p.id !== photoId))
       setSelectedPhotos((current) => current.filter(id => id !== photoId))
+      setDuplicateGroups((current) => 
+        current.map(group => group.filter(p => p.id !== photoId)).filter(group => group.length > 0)
+      )
       toast.success('Duplicate removed')
     } catch (error) {
       console.error('Failed to remove duplicate:', error)
       toast.error('Failed to remove duplicate')
+    }
+  }
+
+  // Enhanced duplicate detection
+  const runDuplicateDetection = async () => {
+    try {
+      setIsDetectingDuplicates(true)
+      const result = await apiService.runDuplicateDetection(detectionSettings)
+      
+      await loadDuplicates()
+      await loadDuplicateGroups()
+      
+      toast.success(`Found ${result.totalFound} duplicates in ${result.groups} groups`)
+      
+      if (result.totalFound > 0) {
+        setCurrentStep('review')
+      }
+    } catch (error) {
+      console.error('Failed to detect duplicates:', error)
+      toast.error('Failed to detect duplicates')
+    } finally {
+      setIsDetectingDuplicates(false)
+      setDuplicateDetectionOpen(false)
+    }
+  }
+
+  const comparePhotosInGroup = (group: PhotoDto[]) => {
+    setComparePhotos(group)
+    setIsCompareOpen(true)
+  }
+
+  const keepPhotoInGroup = async (group: PhotoDto[], keepPhoto: PhotoDto) => {
+    try {
+      const photoIds = group.map(p => p.id)
+      await apiService.removeDuplicateGroup(photoIds, keepPhoto.id)
+      
+      await loadPhotos()
+      await loadDuplicates()
+      await loadDuplicateGroups()
+      
+      toast.success(`Kept "${keepPhoto.name}" and removed ${photoIds.length - 1} duplicates`)
+    } catch (error) {
+      console.error('Failed to process duplicate group:', error)
+      toast.error('Failed to process duplicate group')
+    }
+  }
+
+  const markAsNotDuplicate = async (photoId: number) => {
+    try {
+      await apiService.markAsNotDuplicate(photoId)
+      await loadDuplicates()
+      await loadDuplicateGroups()
+      toast.success('Marked as not duplicate')
+    } catch (error) {
+      console.error('Failed to mark as not duplicate:', error)
+      toast.error('Failed to mark as not duplicate')
+    }
+  }
+
+  const toggleDuplicateGroupSelection = (groupIndex: number) => {
+    setSelectedDuplicateGroups((current) => 
+      current.includes(groupIndex) 
+        ? current.filter(i => i !== groupIndex)
+        : [...current, groupIndex]
+    )
+  }
+
+  const processSelectedGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
+    try {
+      for (const groupIndex of selectedDuplicateGroups) {
+        const group = duplicateGroups[groupIndex]
+        if (!group || group.length === 0) continue
+
+        let keepPhoto: PhotoDto
+        switch (action) {
+          case 'keep-first':
+            keepPhoto = group[0]
+            break
+          case 'keep-largest':
+            keepPhoto = group.reduce((largest, current) => 
+              current.size > largest.size ? current : largest
+            )
+            break
+          case 'keep-newest':
+            keepPhoto = group.reduce((newest, current) => 
+              new Date(current.createdAt) > new Date(newest.createdAt) ? current : newest
+            )
+            break
+          default:
+            keepPhoto = group[0]
+        }
+
+        const photoIds = group.map(p => p.id)
+        await apiService.removeDuplicateGroup(photoIds, keepPhoto.id)
+      }
+
+      await loadPhotos()
+      await loadDuplicates()
+      await loadDuplicateGroups()
+      
+      setSelectedDuplicateGroups([])
+      toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups`)
+    } catch (error) {
+      console.error('Failed to process selected groups:', error)
+      toast.error('Failed to process selected groups')
     }
   }
 
@@ -816,49 +954,386 @@ function PhotoSorter() {
         )}
 
         {/* Duplicates Review */}
-        {duplicates.length > 0 && (
+        {(duplicates.length > 0 || duplicateGroups.length > 0) && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trash2 className="w-5 h-5" />
-                Duplicates Found ({duplicates.length})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Warning className="w-5 h-5 text-orange-500" />
+                  Duplicate Detection Results
+                </CardTitle>
+                
+                <div className="flex items-center gap-2">
+                  {/* Duplicate Detection Settings Dialog */}
+                  <Dialog open={duplicateDetectionOpen} onOpenChange={setDuplicateDetectionOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <MagnifyingGlass className="w-4 h-4 mr-1" />
+                        Detect Duplicates
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Lightning className="w-5 h-5" />
+                          Duplicate Detection Settings
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-6 pt-4">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Similarity Threshold: {detectionSettings.similarityThreshold}%</Label>
+                            <Slider
+                              value={[detectionSettings.similarityThreshold]}
+                              onValueChange={([value]) => 
+                                setDetectionSettings(prev => ({ ...prev, similarityThreshold: value }))
+                              }
+                              max={100}
+                              min={50}
+                              step={5}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Higher values = more strict matching
+                            </p>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Detection Methods</Label>
+                            
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="check-size" className="text-sm">File Size</Label>
+                                <Switch
+                                  id="check-size"
+                                  checked={detectionSettings.checkFileSize}
+                                  onCheckedChange={(checked) => 
+                                    setDetectionSettings(prev => ({ ...prev, checkFileSize: checked }))
+                                  }
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="check-filename" className="text-sm">Filename Similarity</Label>
+                                <Switch
+                                  id="check-filename"
+                                  checked={detectionSettings.checkFilename}
+                                  onCheckedChange={(checked) => 
+                                    setDetectionSettings(prev => ({ ...prev, checkFilename: checked }))
+                                  }
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="check-hash" className="text-sm">Image Hash</Label>
+                                <Switch
+                                  id="check-hash"
+                                  checked={detectionSettings.checkImageHash}
+                                  onCheckedChange={(checked) => 
+                                    setDetectionSettings(prev => ({ ...prev, checkImageHash: checked }))
+                                  }
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="check-visual" className="text-sm">Visual Similarity (slower)</Label>
+                                <Switch
+                                  id="check-visual"
+                                  checked={detectionSettings.checkVisualSimilarity}
+                                  onCheckedChange={(checked) => 
+                                    setDetectionSettings(prev => ({ ...prev, checkVisualSimilarity: checked }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setDuplicateDetectionOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={runDuplicateDetection}
+                            disabled={isDetectingDuplicates}
+                          >
+                            {isDetectingDuplicates ? (
+                              <>
+                                <Lightning className="w-4 h-4 mr-1 animate-pulse" />
+                                Detecting...
+                              </>
+                            ) : (
+                              <>
+                                <MagnifyingGlass className="w-4 h-4 mr-1" />
+                                Run Detection
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Batch Actions for Selected Groups */}
+                  {selectedDuplicateGroups.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {selectedDuplicateGroups.length} groups selected
+                      </Badge>
+                      
+                      <Select onValueChange={(value) => processSelectedGroups(value as any)}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Batch action..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="keep-first">Keep First</SelectItem>
+                          <SelectItem value="keep-largest">Keep Largest</SelectItem>
+                          <SelectItem value="keep-newest">Keep Newest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Alert className="mb-4">
-                <AlertDescription>
-                  We found {duplicates.length} duplicate photos. Review and remove them to keep your library clean.
-                </AlertDescription>
-              </Alert>
-              
-              <div className="space-y-4">
-                {duplicates.map((duplicate) => (
-                  <div key={duplicate.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                    <img
-                      src={`${API_BASE_URL}/photos/${duplicate.id}/file`}
-                      alt={duplicate.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium">{duplicate.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(duplicate.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeDuplicate(duplicate.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <Tabs defaultValue="groups" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="groups">Duplicate Groups ({duplicateGroups.length})</TabsTrigger>
+                  <TabsTrigger value="individual">Individual Duplicates ({duplicates.length})</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="groups" className="space-y-4">
+                  {duplicateGroups.length > 0 ? (
+                    <>
+                      <Alert>
+                        <AlertDescription>
+                          Found {duplicateGroups.length} groups with potential duplicates. Review each group and choose which photo to keep.
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <div className="space-y-4">
+                        {duplicateGroups.map((group, groupIndex) => (
+                          <Card key={groupIndex} className="border-orange-200">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    checked={selectedDuplicateGroups.includes(groupIndex)}
+                                    onCheckedChange={() => toggleDuplicateGroupSelection(groupIndex)}
+                                  />
+                                  <h4 className="font-medium">Group {groupIndex + 1}</h4>
+                                  <Badge variant="outline">{group.length} photos</Badge>
+                                  {group[0]?.similarity && (
+                                    <Badge variant="secondary">
+                                      {Math.round(group[0].similarity)}% similar
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => comparePhotosInGroup(group)}
+                                  >
+                                    <ArrowsLeftRight className="w-4 h-4 mr-1" />
+                                    Compare
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {group.map((photo) => (
+                                  <div key={photo.id} className="relative group">
+                                    <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                                      <img
+                                        src={`${API_BASE_URL}/photos/${photo.id}/file`}
+                                        alt={photo.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                                      <Button 
+                                        size="sm" 
+                                        variant="secondary"
+                                        onClick={() => keepPhotoInGroup(group, photo)}
+                                      >
+                                        <Crown className="w-4 h-4" />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={() => removeDuplicate(photo.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                    
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-xs truncate font-medium">{photo.name}</p>
+                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                        <span>{(photo.size / 1024 / 1024).toFixed(1)}MB</span>
+                                        {photo.dimensions && (
+                                          <span>{photo.dimensions.width}×{photo.dimensions.height}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <Alert>
+                      <AlertDescription>
+                        No duplicate groups found. Run duplicate detection to scan for similar photos.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="individual" className="space-y-4">
+                  {duplicates.length > 0 ? (
+                    <>
+                      <Alert>
+                        <AlertDescription>
+                          Found {duplicates.length} individual duplicate photos. These are exact matches or very similar files.
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <div className="space-y-4">
+                        {duplicates.map((duplicate) => (
+                          <div key={duplicate.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                            <img
+                              src={`${API_BASE_URL}/photos/${duplicate.id}/file`}
+                              alt={duplicate.name}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium">{duplicate.name}</p>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span>{(duplicate.size / 1024 / 1024).toFixed(2)} MB</span>
+                                {duplicate.dimensions && (
+                                  <span>{duplicate.dimensions.width}×{duplicate.dimensions.height}</span>
+                                )}
+                                {duplicate.similarity && (
+                                  <Badge variant="outline">{Math.round(duplicate.similarity)}% match</Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => markAsNotDuplicate(duplicate.id)}
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Not Duplicate
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => removeDuplicate(duplicate.id)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <Alert>
+                      <AlertDescription>
+                        No individual duplicates found.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         )}
+
+        {/* Photo Comparison Dialog */}
+        <Dialog open={isCompareOpen} onOpenChange={setIsCompareOpen}>
+          <DialogContent className="max-w-6xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowsLeftRight className="w-5 h-5" />
+                Compare Photos
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {comparePhotos.slice(0, 2).map((photo, index) => (
+                <div key={photo.id} className="space-y-4">
+                  <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                    <img
+                      src={`${API_BASE_URL}/photos/${photo.id}/file`}
+                      alt={photo.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium truncate">{photo.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => keepPhotoInGroup(comparePhotos, photo)}
+                        >
+                          <Crown className="w-4 h-4 mr-1" />
+                          Keep This
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeDuplicate(photo.id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Size:</span>
+                        <p>{(photo.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                      {photo.dimensions && (
+                        <div>
+                          <span className="text-muted-foreground">Dimensions:</span>
+                          <p>{photo.dimensions.width} × {photo.dimensions.height}</p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-muted-foreground">Created:</span>
+                        <p>{new Date(photo.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      {photo.categoryName && (
+                        <div>
+                          <span className="text-muted-foreground">Category:</span>
+                          <p>{photo.categoryName}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Actions */}
         {photos.length > 0 && (
@@ -866,6 +1341,13 @@ function PhotoSorter() {
             <Button onClick={() => setCurrentStep('sort')} variant="outline">
               <Upload className="w-4 h-4 mr-2" />
               Upload More
+            </Button>
+            <Button 
+              onClick={() => setDuplicateDetectionOpen(true)}
+              variant="outline"
+            >
+              <MagnifyingGlass className="w-4 h-4 mr-2" />
+              Scan for Duplicates
             </Button>
             <Button disabled>
               <Download className="w-4 h-4 mr-2" />

@@ -16,6 +16,12 @@ export interface PhotoDto {
   categoryName?: string;
   isDuplicate: boolean;
   originalPhotoId?: number;
+  hash?: string;
+  similarity?: number;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
 }
 
 export interface CategoryDto {
@@ -206,8 +212,31 @@ class ApiService {
     return this.request<PhotoDto[]>('/duplicates');
   }
 
+  async getDuplicateGroups(): Promise<PhotoDto[][]> {
+    return this.request<PhotoDto[][]>('/duplicates/groups');
+  }
+
+  async runDuplicateDetection(options?: {
+    similarityThreshold?: number;
+    checkFileSize?: boolean;
+    checkFilename?: boolean;
+    checkImageHash?: boolean;
+    checkVisualSimilarity?: boolean;
+  }): Promise<{ totalFound: number; groups: number }> {
+    return this.request<{ totalFound: number; groups: number }>('/duplicates/detect', {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  }
+
   async markAsDuplicate(photoId: number, originalPhotoId: number): Promise<void> {
     return this.request<void>(`/duplicates/${photoId}/mark-duplicate/${originalPhotoId}`, {
+      method: 'POST',
+    });
+  }
+
+  async markAsNotDuplicate(photoId: number): Promise<void> {
+    return this.request<void>(`/duplicates/${photoId}/mark-not-duplicate`, {
       method: 'POST',
     });
   }
@@ -215,6 +244,13 @@ class ApiService {
   async removeDuplicate(duplicatePhotoId: number): Promise<void> {
     return this.request<void>(`/duplicates/${duplicatePhotoId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async removeDuplicateGroup(photoIds: number[], keepPhotoId: number): Promise<void> {
+    return this.request<void>('/duplicates/group', {
+      method: 'DELETE',
+      body: JSON.stringify({ photoIds, keepPhotoId }),
     });
   }
 }
