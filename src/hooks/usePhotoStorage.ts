@@ -147,12 +147,19 @@ export function usePhotoStorage() {
     if (!files) {
       try {
         if (localPhotoService.isFileSystemAccessSupported()) {
+          console.log(`=== Directory Selection Test ===`)
           const dirHandle = await (window as any).showDirectoryPicker()
+          console.log(`Selected directory: ${dirHandle.name}`)
           setIsLoadingPhotos(true)
           setProgress({ operation: 'Loading photos from folder...', current: 0, total: 100 })
           
           const photos = await localPhotoService.loadPhotosFromDirectory(dirHandle)
           setLocalPhotos(localPhotoService.getPhotos())
+          
+          console.log(`=== Load Results ===`)
+          console.log(`Loaded ${photos.length} photos from directory`)
+          console.log('File type breakdown:', localPhotoService.getFileTypeStatistics())
+          console.log('Folder breakdown:', localPhotoService.getFolderStatistics())
           
           toast.success(`Loaded ${photos.length} photos from folder`)
         } else {
@@ -186,11 +193,17 @@ export function usePhotoStorage() {
       }
     } else {
       try {
+        console.log(`=== File List Processing Test ===`)
         setIsLoadingPhotos(true)
         setProgress({ operation: 'Processing photos...', current: 0, total: files.length })
         
         const photos = await localPhotoService.loadPhotosFromFiles(files)
         setLocalPhotos(localPhotoService.getPhotos())
+        
+        console.log(`=== Processing Results ===`)
+        console.log(`Processed ${photos.length} photos from file list`)
+        console.log('File type breakdown:', localPhotoService.getFileTypeStatistics())
+        console.log('Folder breakdown:', localPhotoService.getFolderStatistics())
         
         toast.success(`Loaded ${photos.length} photos`)
       } catch (error) {

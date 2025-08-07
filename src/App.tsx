@@ -15,6 +15,9 @@ import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePhotoStorage, UnifiedPhoto, UnifiedCategory } from '@/hooks/usePhotoStorage'
+import { TestingPanel } from '@/components/TestingPanel'
+import { TestDocumentation } from '@/components/TestDocumentation'
+import { localPhotoService } from '@/services/local'
 import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
@@ -71,6 +74,22 @@ function PhotoSorter() {
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
   const [compareItems, setCompareItems] = React.useState<UnifiedPhoto[]>([])
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
+  const [showTestingPanel, setShowTestingPanel] = React.useState(false)
+
+  // Get statistics for testing
+  const fileTypeStats = React.useMemo(() => {
+    if (currentProvider === 'local') {
+      return localPhotoService.getFileTypeStatistics()
+    }
+    return {}
+  }, [photos, currentProvider])
+
+  const folderStats = React.useMemo(() => {
+    if (currentProvider === 'local') {
+      return localPhotoService.getFolderStatistics()
+    }
+    return {}
+  }, [photos, currentProvider])
 
   // Handle auth callback for OneDrive
   React.useEffect(() => {
@@ -270,10 +289,49 @@ function PhotoSorter() {
     }
   }
 
-  // File input handler for local photos
+  const testAdvancedDuplicateDetection = async () => {
+    if (photos.length < 2) {
+      toast.error('Need at least 2 photos to test duplicate detection')
+      return
+    }
+
+    console.log('=== Starting Advanced Duplicate Detection Test ===')
+    console.log(`Testing with ${photos.length} photos`)
+    
+    // Test different threshold levels
+    const thresholds = [50, 70, 85, 95]
+    
+    for (const threshold of thresholds) {
+      console.log(`\n--- Testing with ${threshold}% similarity threshold ---`)
+      
+      await runDuplicateDetection({
+        checkFileSize: true,
+        checkFilename: true,
+        checkHash: true,
+        similarityThreshold: threshold
+      })
+      
+      console.log(`Found ${duplicateGroups.length} duplicate groups with ${threshold}% threshold`)
+    }
+    
+    toast.success('Advanced duplicate detection test completed - check console for details')
+  }
+
+  const generateTestFiles = async () => {
+    // This would create sample test files in a real implementation
+    toast.info('Test file generation would create sample photos with various formats and structures')
+  }
+  // File input handler for local photos with enhanced logging  
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files && files.length > 0) {
+      console.log(`=== File Input Test ===`)
+      console.log(`Selected ${files.length} files:`)
+      
+      Array.from(files).forEach((file, index) => {
+        console.log(`${index + 1}. ${file.name} (${file.type}, ${file.size} bytes)`)
+      })
+      
       loadPhotos(false, files)
     }
   }
@@ -494,6 +552,13 @@ function PhotoSorter() {
             <Button variant="outline" onClick={() => setShowProviderSelection(true)} size="sm">
               Switch Provider
             </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowTestingPanel(!showTestingPanel)} 
+              size="sm"
+            >
+              {showTestingPanel ? 'Hide' : 'Show'} Testing
+            </Button>
             {currentProvider === 'onedrive' && (
               <Button variant="outline" onClick={logoutOneDrive} size="sm">
                 <SignOut className="w-4 h-4 mr-2" />
@@ -583,6 +648,21 @@ function PhotoSorter() {
           </CardContent>
         </Card>
 
+        {/* Testing Panel */}
+        {showTestingPanel && (
+          <div className="space-y-6">
+            <TestingPanel
+              photos={photos}
+              fileTypeStats={fileTypeStats}
+              folderStats={folderStats}
+              onTestDuplicates={testAdvancedDuplicateDetection}
+              onGenerateTestFiles={generateTestFiles}
+              isTestingInProgress={isDuplicateDetectionRunning}
+            />
+            
+            <TestDocumentation />
+          </div>
+        )}
 
         {categories.length > 0 && (
           <Card>

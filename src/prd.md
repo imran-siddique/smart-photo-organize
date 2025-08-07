@@ -69,7 +69,52 @@
 - `Microsoft Graph API /me` - User profile information
 - OAuth 2.0 endpoints for authentication and token refresh
 
-## Design Direction
+## Testing & Quality Assurance
+
+### Comprehensive File Format Support
+- **Standard Formats**: JPEG, PNG, GIF with full browser support
+- **Modern Formats**: WebP (widely supported), AVIF (emerging), HEIC (Safari only)
+- **Legacy Formats**: BMP, TIFF, ICO with varying browser support
+- **Graceful Degradation**: Unsupported formats are detected and skipped with user feedback
+- **File Type Detection**: Both MIME type and file extension analysis for robust format detection
+
+### Folder Structure Testing
+- **Deep Nesting**: Support for multi-level directory traversal (5+ levels deep)
+- **Special Characters**: Unicode support for international filenames and folder names
+- **Path Preservation**: Maintains original folder hierarchy information for organization
+- **Large Collections**: Tested with 100+ files across complex folder structures
+- **Memory Management**: Efficient handling of large file sets without browser crashes
+
+### Edge Case Handling
+- **Corrupted Files**: Graceful error handling for damaged or invalid image files
+- **Zero-byte Files**: Detection and proper handling of empty files
+- **Permission Issues**: Clear error messages for access-denied scenarios  
+- **Network Failures**: Robust error handling for OneDrive connection issues
+- **Memory Constraints**: Progress tracking and chunked processing for large datasets
+
+### Performance & Reliability Testing
+- **Large File Support**: Files over 10MB handled efficiently with progress indication
+- **Batch Operations**: Concurrent processing with configurable limits to prevent browser overload
+- **Thumbnail Generation**: Optimized image scaling with fallback for problematic files
+- **Hash Calculation**: Fast SHA-256 hashing for duplicate detection with timeout protection
+- **Memory Cleanup**: Proper disposal of object URLs to prevent memory leaks
+
+## Testing Features
+
+### Integrated Testing Panel
+- **Real-time Statistics**: Live file type and folder structure analysis
+- **Performance Monitoring**: Memory usage and processing speed tracking
+- **Interactive Test Suite**: Guided testing scenarios with completion tracking
+- **Comprehensive Documentation**: Step-by-step test procedures with expected results
+- **Test Data Generation**: Recommendations for creating diverse test datasets
+
+### Console Logging & Diagnostics
+- **Detailed Processing Logs**: Step-by-step file processing information
+- **Error Tracking**: Comprehensive error reporting with context
+- **Performance Metrics**: Processing times and success/failure rates  
+- **File Analysis**: Automatic categorization of loaded files by type and location
+- **Duplicate Detection Insights**: Detailed similarity analysis and reasoning
+
 
 ### Visual Tone & Identity
 - **Emotional Response**: Modern cloud-native experience with enterprise reliability
