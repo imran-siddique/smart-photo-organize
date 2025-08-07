@@ -1,26 +1,25 @@
 // OneDrive API Configuration and Types
-  clientId: import.meta.env.VITE
-  clientId: process.env.VITE_ONEDRIVE_CLIENT_ID || 'your-onedrive-client-id',
-  redirectUri: window.location.origin + '/auth/callback',
-};
-  authority: 'https://login.microsoftonline.com/common'
-  
 
-  downloadUrl?: string;
-    medium?: 
-      width: nu
-    };
-  folder?: {
-  };
-    mimeType: string
-      sha1Hash?: 
+const ONEDRIVE_CONFIG = {
+  clientId: import.meta.env.VITE_ONEDRIVE_CLIENT_ID || 'your-onedrive-client-id',
+  redirectUri: window.location.origin + '/auth/callback',
+  scope: 'https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read',
+  authority: 'https://login.microsoftonline.com/common'
+};
+
+export interface OneDriveItem {
+  id: string;
+  name: string;
+  size: number;
+  createdDateTime: string;
+  lastModifiedDateTime: string;
   downloadUrl?: string;
   thumbnails?: {
     medium?: {
       url: string;
       width: number;
       height: number;
-  phot
+    };
   }[];
   folder?: {
     childCount: number;
@@ -32,27 +31,27 @@
       quickXorHash?: string;
     };
   };
-  displayNa
+  image?: {
     width: number;
     height: number;
   };
-  id: strin
+  photo?: {
     takenDateTime: string;
     cameraMake?: string;
     cameraModel?: string;
-
+  };
   parentReference: {
     id: string;
     path: string;
-}
+  };
 }
 
 export interface OneDriveUser {
-  reason: str
+  id: string;
   displayName: string;
   mail?: string;
   userPrincipalName: string;
- 
+}
 
 export interface BatchRequest {
   id: string;
@@ -60,72 +59,68 @@ export interface BatchRequest {
   url: string;
   headers?: Record<string, string>;
   body?: any;
- 
+}
 
-    try {
-        metho
-          'Conten
-        body: new URLSearchParams({
-          
- 
+export interface BatchResponse<T> {
+  id: string;
+  status: number;
+  headers?: Record<string, string>;
+  body?: T;
+}
 
+export interface DuplicateGroup {
+  id: string;
+  items: OneDriveItem[];
+  similarity: number;
+  reason: string[];
+}
 
-        throw
+export interface CategoryPattern {
+  id: string;
+  name: string;
+  patterns: string[];
+  folder: string;
+  color: string;
+  autoSort: boolean;
+  sortOrder: number;
+}
 
-      this.saveTokens
-    } catch (error)
- 
+class OneDriveService {
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private readonly baseUrl = 'https://graph.microsoft.com/v1.0';
+  private readonly batchSize = 20;
+  private readonly maxParallelRequests = 5;
 
-  async refreshAccessToken(): Prom
-
-      const res
-        headers: {
-        },
-          client
-          refresh_to
-        }),
-
-
-
-      this.saveTokensToStorage(data.access_t
-    } catch (error) {
-      return false;
+  constructor() {
+    this.loadTokensFromStorage();
   }
-  isAuthenticated(): boolean {
 
-  logout() {
-    this.refreshToken = null;
-   
+  private loadTokensFromStorage() {
+    this.accessToken = localStorage.getItem('onedrive_access_token');
+    this.refreshToken = localStorage.getItem('onedrive_refresh_token');
+  }
 
-  private async request<T>(
-      throw new Error('No access to
+  private saveTokensToStorage(accessToken: string, refreshToken: string) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    localStorage.setItem('onedrive_access_token', accessToken);
+    localStorage.setItem('onedrive_refresh_token', refreshToken);
+  }
 
+  getAuthUrl(): string {
+    const params = new URLSearchParams({
+      client_id: ONEDRIVE_CONFIG.clientId,
+      response_type: 'code',
+      redirect_uri: ONEDRIVE_CONFIG.redirectUri,
+      scope: ONEDRIVE_CONFIG.scope,
+      response_mode: 'query'
+    });
 
-   
+    return `${ONEDRIVE_CONFIG.authority}/oauth2/v2.0/authorize?${params.toString()}`;
+  }
 
-          ...options?.headers,
-        ...options,
-
-    
-          return this.r
-        throw new Error('Authentication
-
-     
-   
-
-        return response.json();
-
-    } catch (error) {
-        await new Promise(re
-      }
-    }
-
-  async
-
-    // Process batches in parallel with concurrency limit
-   
-
-      results.forEach((result) => {
+  async exchangeCodeForTokens(code: string): Promise<boolean> {
     try {
       const response = await fetch(`${ONEDRIVE_CONFIG.authority}/oauth2/v2.0/token`, {
         method: 'POST',
@@ -256,32 +251,32 @@ export interface BatchRequest {
         if (result.status === 'fulfilled') {
           allResponses.push(...result.value);
         } else {
-    return this.request<OneDriveItem>(`/me/drive/items/${itemId}`,
+          console.error('Batch failed:', result.reason);
         }
-        p
+      });
     }
 
     return allResponses;
-
+  }
 
   private async executeBatch<T>(requests: BatchRequest[]): Promise<BatchResponse<T>[]> {
     const batchPayload = {
       requests: requests.map(req => ({
         id: req.id,
-        }
+        method: req.method,
         url: req.url,
-
+        headers: req.headers,
         body: req.body
-      .fi
+      }))
     };
 
     const response = await this.request<{ responses: BatchResponse<T>[] }>('/$batch', {
-      id: `delete-${i
+      method: 'POST',
       body: JSON.stringify(batchPayload)
-    }))
+    });
 
     return response.responses;
-
+  }
 
   // OneDrive File Operations
   async getCurrentUser(): Promise<OneDriveUser> {
@@ -294,13 +289,13 @@ export interface BatchRequest {
       : `/me/drive/items/${folderId}`;
     
     const response = await this.request<{ value: OneDriveItem[] }>(endpoint);
-    }
+    return response.value || [];
   }
 
   async getAllPhotos(): Promise<OneDriveItem[]> {
     const allItems: OneDriveItem[] = [];
     
-  ): Promise<DuplicateGroup[]> {
+    // Common photo locations in OneDrive
     const photoLocations = [
       'root:/Pictures',
       'root:/Camera Roll', 
@@ -310,33 +305,33 @@ export interface BatchRequest {
 
     const requests: BatchRequest[] = photoLocations.map((path, index) => ({
       id: `photos-${index}`,
-        
+      method: 'GET',
       url: `/me/drive/${path}:/children?$filter=file ne null and startswith(file/mimeType,'image/')&$expand=thumbnails`
-        
+    }));
 
     const responses = await this.processBatch<{ value: OneDriveItem[] }>(requests);
     
     responses.forEach(response => {
       if (response.status === 200 && response.body?.value) {
-          similarity: this.calculateGroupSimil
+        allItems.push(...response.body.value);
       }
-       
+    });
 
     // Also search for photos across the entire drive
     try {
       const searchResponse = await this.request<{ value: OneDriveItem[] }>(
         `/me/drive/root/search(q='*.jpg OR *.jpeg OR *.png OR *.gif OR *.bmp OR *.tiff')`
-    item
+      );
       
-  ): { score: number; reasons: st
+      if (searchResponse.value) {
         // Filter out duplicates by ID
         const existingIds = new Set(allItems.map(item => item.id));
         const newItems = searchResponse.value.filter(item => !existingIds.has(item.id));
-      totalChecks++;
+        allItems.push(...newItems);
       }
-        reasons.push(
+    } catch (error) {
       console.warn('Search photos failed:', error);
-
+    }
 
     return allItems;
   }
@@ -344,9 +339,9 @@ export interface BatchRequest {
   async getPhotoDetails(items: OneDriveItem[]): Promise<OneDriveItem[]> {
     const requests: BatchRequest[] = items.map((item, index) => ({
       id: `details-${index}`,
-      if (item1.file
+      method: 'GET',
       url: `/me/drive/items/${item.id}?$expand=thumbnails`
-      } 
+    }));
 
     const responses = await this.processBatch<OneDriveItem>(requests);
     const detailedItems: OneDriveItem[] = [];
@@ -354,13 +349,13 @@ export interface BatchRequest {
     responses.forEach((response, index) => {
       if (response.status === 200 && response.body) {
         detailedItems.push(response.body);
-    const n2 =
+      } else {
         // Fallback to original item if details fetch failed
         detailedItems.push(items[index]);
       }
-    
+    });
 
-    const distance = this
+    return detailedItems;
   }
 
   async downloadPhoto(item: OneDriveItem): Promise<Blob> {
@@ -380,61 +375,61 @@ export interface BatchRequest {
         name: name,
         folder: {},
         '@microsoft.graph.conflictBehavior': 'rename'
-    for 
+      })
     });
-   
+  }
 
   async moveItem(itemId: string, targetFolderId: string): Promise<OneDriveItem> {
     return this.request<OneDriveItem>(`/me/drive/items/${itemId}`, {
-  }
+      method: 'PATCH',
       body: JSON.stringify({
         parentReference: {
           id: targetFolderId
         }
       })
-  }
+    });
   }
 
   async moveItems(items: { itemId: string; targetFolderId: string }[]): Promise<OneDriveItem[]> {
     const requests: BatchRequest[] = items.map((item, index) => ({
       id: `move-${index}`,
-
+      method: 'PATCH',
       url: `/me/drive/items/${item.itemId}`,
       body: {
         parentReference: {
           id: item.targetFolderId
         }
-    }
+      }
     }));
 
     const responses = await this.processBatch<OneDriveItem>(requests);
     return responses
       .filter(response => response.status === 200)
-
+      .map(response => response.body!);
   }
 
   async deleteItems(itemIds: string[]): Promise<string[]> {
     const requests: BatchRequest[] = itemIds.map((id, index) => ({
       id: `delete-${index}`,
-
+      method: 'DELETE',
       url: `/me/drive/items/${id}`
-
+    }));
 
     const responses = await this.processBatch(requests);
     return responses
       .filter(response => response.status === 204 || response.status === 200)
       .map(response => response.id.replace('delete-', ''));
-
+  }
 
   // Duplicate Detection Methods
   async findDuplicatePhotos(items: OneDriveItem[], options: {
-
+    checkFileSize: boolean;
     checkFilename: boolean;
-
+    checkHash: boolean;
     similarityThreshold: number;
   }): Promise<DuplicateGroup[]> {
     const duplicateGroups: DuplicateGroup[] = [];
-
+    const processedItems = new Set<string>();
 
     // Process items in parallel chunks
     const chunks = this.chunkArray(items, 50);
@@ -448,15 +443,15 @@ export interface BatchRequest {
   }
 
   private async findDuplicatesInChunk(
-
+    items: OneDriveItem[],
     options: any,
     processedItems: Set<string>
   ): Promise<DuplicateGroup[]> {
     const duplicateGroups: DuplicateGroup[] = [];
 
-
+    for (let i = 0; i < items.length; i++) {
       const item1 = items[i];
-
+      if (processedItems.has(item1.id)) continue;
 
       const duplicates: OneDriveItem[] = [item1];
       const reasons: string[] = [];
@@ -468,11 +463,10 @@ export interface BatchRequest {
         const similarity = this.calculateSimilarity(item1, item2, options);
 
         if (similarity.score >= options.similarityThreshold) {
-
+          duplicates.push(item2);
           reasons.push(...similarity.reasons);
-
         }
-
+      }
 
       if (duplicates.length > 1) {
         duplicateGroups.push({
@@ -484,36 +478,36 @@ export interface BatchRequest {
         
         duplicates.forEach(item => processedItems.add(item.id));
       }
+    }
 
-
-
+    return duplicateGroups;
   }
 
   private calculateSimilarity(
-
+    item1: OneDriveItem,
     item2: OneDriveItem,
     options: any
   ): { score: number; reasons: string[] } {
-
+    let score = 0;
     const reasons: string[] = [];
+    let totalChecks = 0;
 
-
-
+    if (options.checkFileSize) {
       totalChecks++;
-
+      if (Math.abs(item1.size - item2.size) / Math.max(item1.size, item2.size) < 0.1) {
         score += 30;
         reasons.push('Similar file size');
       }
+    }
 
-
-
+    if (options.checkFilename) {
       totalChecks++;
       const similarity = this.calculateNameSimilarity(item1.name, item2.name);
       if (similarity > 0.7) {
-
+        score += 40;
         reasons.push('Similar filename');
-
-
+      }
+    }
 
     if (options.checkHash && item1.file?.hashes && item2.file?.hashes) {
       totalChecks++;
@@ -530,11 +524,11 @@ export interface BatchRequest {
   }
 
   private calculateNameSimilarity(name1: string, name2: string): number {
-
+    const normalize = (str: string) => str.toLowerCase().replace(/\.(jpg|jpeg|png|gif|bmp|tiff)$/i, '');
     const n1 = normalize(name1);
     const n2 = normalize(name2);
     
-
+    if (n1 === n2) return 1;
 
     const longer = n1.length > n2.length ? n1 : n2;
     const shorter = n1.length > n2.length ? n2 : n1;
@@ -552,11 +546,11 @@ export interface BatchRequest {
     for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
     
     for (let j = 1; j <= str2.length; j++) {
-
+      for (let i = 1; i <= str1.length; i++) {
         const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
         matrix[j][i] = Math.min(
           matrix[j][i - 1] + 1,
-
+          matrix[j - 1][i] + 1,
           matrix[j - 1][i - 1] + indicator
         );
       }
@@ -568,7 +562,7 @@ export interface BatchRequest {
   private calculateGroupSimilarity(items: OneDriveItem[], options: any): number {
     if (items.length < 2) return 0;
 
-
+    let totalScore = 0;
     let comparisons = 0;
 
     for (let i = 0; i < items.length; i++) {
@@ -580,15 +574,15 @@ export interface BatchRequest {
     }
 
     return comparisons > 0 ? totalScore / comparisons : 0;
+  }
 
-
-
+  // Utility Methods
   private chunkArray<T>(array: T[], size: number): T[][] {
-
+    const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
       chunks.push(array.slice(i, i + size));
     }
-
+    return chunks;
   }
 
   getThumbnailUrl(item: OneDriveItem, size: 'small' | 'medium' | 'large' = 'medium'): string | null {
@@ -602,15 +596,15 @@ export interface BatchRequest {
   formatFileSize(bytes: number): string {
     const units = ['B', 'KB', 'MB', 'GB'];
     let size = bytes;
-
+    let unitIndex = 0;
     
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
-
+      unitIndex++;
     }
 
     return `${size.toFixed(1)} ${units[unitIndex]}`;
-
+  }
 }
 
 export const oneDriveService = new OneDriveService();

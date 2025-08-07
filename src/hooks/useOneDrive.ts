@@ -106,7 +106,7 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
   const handleAuthCallback = async (code: string): Promise<boolean> => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
-      const success = await oneDriveService.exchangeCodeForToken(code);
+      const success = await oneDriveService.exchangeCodeForTokens(code);
       
       if (success) {
         const user = await oneDriveService.getCurrentUser();
