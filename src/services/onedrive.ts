@@ -423,7 +423,7 @@ class OneDriveService {
   ): Promise<DuplicateGroup[]> {
     const duplicateGroups: DuplicateGroup[] = [];
 
-  async findDuplicatePhotos(items: OneDriveItem[], options: {
+    for (let i = 0; i < items.length; i++) {
       const item1 = items[i];
       if (processedItems.has(item1.id)) continue;
 
