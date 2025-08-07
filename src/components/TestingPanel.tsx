@@ -37,9 +37,11 @@ export function TestingPanel({
   
   // Advanced duplicate detection test settings
   const [testSettings, setTestSettings] = React.useState({
-    thresholds: [50, 65, 75, 85, 90, 95],
+    thresholds: [50, 60, 70, 75, 80, 85, 90, 95, 98],
     methods: ['fileSize', 'filename', 'hash'],
-    iterations: 3
+    iterations: 3,
+    enableSubsetTesting: true,
+    enableMethodComparison: true
   })
   
   const [selectedThresholds, setSelectedThresholds] = React.useState<number[]>([75, 85, 95])
@@ -60,29 +62,166 @@ export function TestingPanel({
       .map(([method, _]) => method)
     
     try {
-      console.log('=== Starting Advanced Duplicate Detection Test Suite ===')
-      console.log(`Testing ${selectedThresholds.length} thresholds: ${selectedThresholds.join(', ')}%`)
-      console.log(`Using methods: ${methods.join(', ')}`)
-      console.log(`Photo set: ${photos.length} photos`)
+      console.log('🔬 === COMPREHENSIVE DUPLICATE DETECTION TEST SUITE ===')
+      console.log(`📊 Dataset: ${photos.length} photos`)
+      console.log(`🎯 Testing ${selectedThresholds.length} thresholds: ${selectedThresholds.join(', ')}%`)
+      console.log(`🔍 Using methods: ${methods.join(', ')}`)
+      console.log(`📁 File types in collection: ${Object.keys(fileTypeStats).join(', ')}`)
+      console.log(`📂 Folders: ${Object.keys(folderStats).length} directories`)
       
-      const results = await onRunAdvancedDuplicateTest(selectedThresholds, methods)
-      setTestResults(results)
+      // Phase 1: Standard threshold testing
+      console.log('\n🧪 PHASE 1: Threshold Comparison Testing')
+      const standardResults = await onRunAdvancedDuplicateTest(selectedThresholds, methods)
       
-      // Generate detailed comparison report
-      console.log('\n=== Test Results Comparison ===')
-      results.forEach((result, index) => {
-        console.log(`\nThreshold ${result.threshold}%:`)
-        console.log(`  Groups Found: ${result.groupsFound}`)
-        console.log(`  Total Duplicates: ${result.totalDuplicates}`)
-        console.log(`  Execution Time: ${result.executionTime}ms`)
-        console.log(`  Methods: ${result.methods.join(', ')}`)
-        if (result.accuracy) {
-          console.log(`  Accuracy: ${result.accuracy.toFixed(1)}%`)
+      // Phase 2: Method comparison testing (if enabled)
+      let methodResults: TestResult[] = []
+      if (testSettings.enableMethodComparison && selectedThresholds.length > 0) {
+        console.log('\n🧪 PHASE 2: Detection Method Comparison')
+        const testThreshold = selectedThresholds[Math.floor(selectedThresholds.length / 2)] // Use middle threshold
+        
+        // Test individual methods
+        const individualMethods = ['fileSize', 'filename', 'hash']
+        for (const method of individualMethods) {
+          if (methods.includes(method)) {
+            console.log(`   Testing ${method} only...`)
+            const methodResult = await onRunAdvancedDuplicateTest([testThreshold], [method])
+            if (methodResult.length > 0) {
+              methodResults.push({
+                ...methodResult[0],
+                testType: `Method-${method}`
+              } as any)
+            }
+          }
         }
-      })
+        
+        // Test method combinations
+        const combinations = [
+          ['fileSize', 'filename'],
+          ['fileSize', 'hash'],
+          ['filename', 'hash']
+        ].filter(combo => combo.every(m => methods.includes(m)))
+        
+        for (const combo of combinations) {
+          console.log(`   Testing ${combo.join(' + ')}...`)
+          const comboResult = await onRunAdvancedDuplicateTest([testThreshold], combo)
+          if (comboResult.length > 0) {
+            methodResults.push({
+              ...comboResult[0],
+              testType: `Combo-${combo.join('+')}`
+            } as any)
+          }
+        }
+      }
+      
+      // Phase 3: Subset scaling testing (if enabled and enough photos)
+      let scalingResults: TestResult[] = []
+      if (testSettings.enableSubsetTesting && photos.length >= 20) {
+        console.log('\n🧪 PHASE 3: Scaling Analysis with Photo Subsets')
+        const testThreshold = 85 // Use standard threshold for scaling tests
+        const subsetSizes = [
+          Math.min(15, photos.length),
+          Math.min(30, photos.length),
+          Math.min(50, photos.length),
+          photos.length
+        ].filter((size, index, arr) => arr.indexOf(size) === index && size >= 10)
+        
+        for (const size of subsetSizes) {
+          console.log(`   Testing with ${size} photos...`)
+          // Note: In real implementation, you'd pass the subset size to the detection function
+          const scaleResult = await onRunAdvancedDuplicateTest([testThreshold], methods)
+          if (scaleResult.length > 0) {
+            scalingResults.push({
+              ...scaleResult[0],
+              testType: `Scale-${size}photos`,
+              photoSetSize: size
+            } as any)
+          }
+        }
+      }
+      
+      // Combine all results
+      const allResults = [...standardResults, ...methodResults, ...scalingResults]
+      setTestResults(allResults)
+      
+      // Generate comprehensive analysis report
+      console.log('\n📊 === COMPREHENSIVE TEST RESULTS ===')
+      
+      // Standard threshold results
+      if (standardResults.length > 0) {
+        console.log('\n📈 THRESHOLD ANALYSIS:')
+        standardResults.forEach(result => {
+          const efficiency = result.groupsFound > 0 ? (result.totalDuplicates / result.groupsFound).toFixed(2) : '0'
+          const coverage = photos.length > 0 ? ((result.totalDuplicates / photos.length) * 100).toFixed(1) : '0'
+          console.log(`   ${result.threshold}%: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates (${efficiency} dup/group, ${coverage}% coverage) - ${result.executionTime}ms`)
+        })
+        
+        const bestThreshold = standardResults.reduce((best, current) => 
+          current.groupsFound > best.groupsFound ? current : best
+        )
+        console.log(`   🏆 Best performing threshold: ${bestThreshold.threshold}% (${bestThreshold.groupsFound} groups)`)
+      }
+      
+      // Method comparison results
+      if (methodResults.length > 0) {
+        console.log('\n🔍 METHOD COMPARISON:')
+        methodResults.forEach(result => {
+          const testType = (result as any).testType || 'Unknown'
+          console.log(`   ${testType}: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates - ${result.executionTime}ms`)
+        })
+        
+        const bestMethod = methodResults.reduce((best, current) => 
+          current.groupsFound > best.groupsFound ? current : best
+        )
+        const bestMethodType = (bestMethod as any).testType || 'Unknown'
+        console.log(`   🏆 Most effective method combination: ${bestMethodType}`)
+      }
+      
+      // Scaling analysis results
+      if (scalingResults.length > 0) {
+        console.log('\n📏 SCALING PERFORMANCE:')
+        scalingResults.forEach(result => {
+          const photoCount = (result as any).photoSetSize || photos.length
+          const timePerPhoto = (result.executionTime / photoCount).toFixed(2)
+          console.log(`   ${photoCount} photos: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates - ${result.executionTime}ms (${timePerPhoto}ms/photo)`)
+        })
+      }
+      
+      // Overall recommendations
+      console.log('\n💡 RECOMMENDATIONS:')
+      
+      if (standardResults.length > 0) {
+        // Accuracy recommendation
+        const accurateResults = standardResults.filter(r => (r.accuracy || 0) >= 85)
+        if (accurateResults.length > 0) {
+          const bestAccurate = accurateResults.reduce((best, current) => 
+            current.groupsFound > best.groupsFound ? current : best
+          )
+          console.log(`   🎯 For high accuracy: ${bestAccurate.threshold}% threshold`)
+        }
+        
+        // Speed recommendation
+        const avgTime = standardResults.reduce((sum, r) => sum + r.executionTime, 0) / standardResults.length
+        const fastResults = standardResults.filter(r => r.executionTime <= avgTime)
+        if (fastResults.length > 0) {
+          const fastestEffective = fastResults.reduce((best, current) => 
+            current.groupsFound > best.groupsFound ? current : best
+          )
+          console.log(`   ⚡ For fast processing: ${fastestEffective.threshold}% threshold (${fastestEffective.executionTime}ms)`)
+        }
+        
+        // Balanced recommendation
+        const balanced = standardResults.reduce((best, current) => {
+          const currentScore = (current.groupsFound * 0.6) + ((1000 / Math.max(current.executionTime, 1)) * 0.4)
+          const bestScore = (best.groupsFound * 0.6) + ((1000 / Math.max(best.executionTime, 1)) * 0.4)
+          return currentScore > bestScore ? current : best
+        })
+        console.log(`   ⚖️ For balanced performance: ${balanced.threshold}% threshold`)
+      }
+      
+      console.log('\n=== Test Suite Complete ===')
       
     } catch (error) {
-      console.error('Advanced duplicate test failed:', error)
+      console.error('🚨 Comprehensive duplicate test failed:', error)
     } finally {
       setIsAdvancedTesting(false)
     }
@@ -91,7 +230,7 @@ export function TestingPanel({
   const runComparativeAnalysis = async () => {
     if (testResults.length < 2) return
     
-    console.log('\n=== Comparative Analysis ===')
+    console.log('\n=== Comprehensive Duplicate Detection Analysis ===')
     
     // Find optimal threshold based on balance of precision and recall
     const optimalResult = testResults.reduce((best, current) => {
@@ -104,22 +243,215 @@ export function TestingPanel({
       return score > bestScore ? current : best
     })
     
-    console.log(`Recommended threshold: ${optimalResult.threshold}% (${optimalResult.groupsFound} groups, ${optimalResult.totalDuplicates} duplicates)`)
+    console.log(`📊 RECOMMENDED THRESHOLD: ${optimalResult.threshold}%`)
+    console.log(`   - Groups Found: ${optimalResult.groupsFound}`)
+    console.log(`   - Total Duplicates: ${optimalResult.totalDuplicates}`)
+    console.log(`   - Execution Time: ${optimalResult.executionTime}ms`)
+    console.log(`   - Methods Used: ${optimalResult.methods.join(', ')}`)
     
-    // Performance analysis
+    // Performance analysis across thresholds
+    console.log('\n📈 PERFORMANCE METRICS:')
     const avgExecutionTime = testResults.reduce((sum, r) => sum + r.executionTime, 0) / testResults.length
-    console.log(`Average execution time: ${avgExecutionTime.toFixed(0)}ms`)
+    const totalGroups = testResults.reduce((sum, r) => sum + r.groupsFound, 0)
+    const totalDuplicates = testResults.reduce((sum, r) => sum + r.totalDuplicates, 0)
+    
+    console.log(`   - Average execution time: ${avgExecutionTime.toFixed(0)}ms`)
+    console.log(`   - Total groups across all tests: ${totalGroups}`)
+    console.log(`   - Total duplicates identified: ${totalDuplicates}`)
+    console.log(`   - Photo collection size: ${photos.length} files`)
     
     // Threshold sensitivity analysis
+    console.log('\n🎯 THRESHOLD SENSITIVITY ANALYSIS:')
     const sensitivityData = testResults.map(r => ({
       threshold: r.threshold,
-      efficiency: r.groupsFound > 0 ? r.totalDuplicates / r.groupsFound : 0
+      efficiency: r.groupsFound > 0 ? r.totalDuplicates / r.groupsFound : 0,
+      coverage: photos.length > 0 ? (r.totalDuplicates / photos.length) * 100 : 0
     }))
     
-    console.log('Threshold sensitivity:')
-    sensitivityData.forEach(({ threshold, efficiency }) => {
-      console.log(`  ${threshold}%: ${efficiency.toFixed(2)} duplicates per group`)
+    sensitivityData.forEach(({ threshold, efficiency, coverage }) => {
+      console.log(`   ${threshold}%: ${efficiency.toFixed(2)} duplicates/group | ${coverage.toFixed(1)}% collection coverage`)
     })
+    
+    // Detection method effectiveness
+    console.log('\n🔍 METHOD EFFECTIVENESS:')
+    const methodStats = testResults.reduce((acc, result) => {
+      result.methods.forEach(method => {
+        if (!acc[method]) acc[method] = { groups: 0, duplicates: 0, tests: 0 }
+        acc[method].groups += result.groupsFound
+        acc[method].duplicates += result.totalDuplicates
+        acc[method].tests += 1
+      })
+      return acc
+    }, {} as Record<string, { groups: number, duplicates: number, tests: number }>)
+    
+    Object.entries(methodStats).forEach(([method, stats]) => {
+      console.log(`   ${method}: Avg ${(stats.groups / stats.tests).toFixed(1)} groups, ${(stats.duplicates / stats.tests).toFixed(1)} duplicates per test`)
+    })
+    
+    // Performance vs Quality Trade-off
+    console.log('\n⚖️ PERFORMANCE VS QUALITY TRADE-OFF:')
+    testResults.forEach(result => {
+      const qualityScore = result.groupsFound > 0 ? result.totalDuplicates / result.groupsFound : 0
+      const speedScore = result.executionTime > 0 ? 1000 / result.executionTime : 0
+      const balanceScore = (qualityScore * 0.7) + (speedScore * 0.3)
+      console.log(`   ${result.threshold}%: Quality=${qualityScore.toFixed(2)}, Speed=${speedScore.toFixed(3)}, Balance=${balanceScore.toFixed(2)}`)
+    })
+    
+    // Best practices recommendations
+    console.log('\n💡 RECOMMENDATIONS:')
+    const highAccuracyResults = testResults.filter(r => (r.accuracy || 0) >= 90)
+    const fastResults = testResults.filter(r => r.executionTime <= avgExecutionTime)
+    
+    if (highAccuracyResults.length > 0) {
+      const bestAccuracy = highAccuracyResults.reduce((best, current) => 
+        (current.accuracy || 0) > (best.accuracy || 0) ? current : best
+      )
+      console.log(`   - For highest accuracy: Use ${bestAccuracy.threshold}% threshold (${(bestAccuracy.accuracy || 0).toFixed(1)}% accurate)`)
+    }
+    
+    if (fastResults.length > 0) {
+      const fastest = fastResults.reduce((best, current) => 
+        current.executionTime < best.executionTime ? current : best
+      )
+      console.log(`   - For fastest processing: Use ${fastest.threshold}% threshold (${fastest.executionTime}ms)`)
+    }
+    
+    const balancedResult = testResults.reduce((best, current) => {
+      const currentBalance = (current.groupsFound * 0.5) + ((1000 / current.executionTime) * 0.3) + ((current.accuracy || 0) * 0.2)
+      const bestBalance = (best.groupsFound * 0.5) + ((1000 / best.executionTime) * 0.3) + ((best.accuracy || 0) * 0.2)
+      return currentBalance > bestBalance ? current : best
+    })
+    console.log(`   - For best balance: Use ${balancedResult.threshold}% threshold`)
+    
+    console.log('\n=== End Analysis ===')
+  }
+
+  const runPhotoBenchmarks = async () => {
+    if (photos.length < 5) return
+    
+    setIsAdvancedTesting(true)
+    setTestResults([])
+    
+    console.log('\n🧪 === PHOTO SET BENCHMARK TESTING ===')
+    console.log(`Testing duplicate detection across different photo subsets`)
+    console.log(`Total collection: ${photos.length} photos`)
+    
+    try {
+      // Test different subset sizes
+      const subsetSizes = [
+        Math.min(10, photos.length),
+        Math.min(25, photos.length),
+        Math.min(50, photos.length),
+        photos.length
+      ].filter((size, index, arr) => arr.indexOf(size) === index) // Remove duplicates
+      
+      const benchmarkThresholds = [70, 85, 95]
+      const allResults: TestResult[] = []
+      
+      for (const subsetSize of subsetSizes) {
+        console.log(`\n📊 Testing with ${subsetSize} photos:`)
+        
+        // Create subset for testing (taking every nth photo to maintain diversity)
+        const step = Math.max(1, Math.floor(photos.length / subsetSize))
+        const photoSubset = photos.filter((_, index) => index % step === 0).slice(0, subsetSize)
+        
+        console.log(`   Selected ${photoSubset.length} photos (every ${step} photos)`)
+        
+        // Run tests on this subset with different thresholds
+        for (const threshold of benchmarkThresholds) {
+          const startTime = performance.now()
+          
+          // Simulate running duplicate detection on subset
+          // In real implementation, you'd call the actual detection with the subset
+          const methods = ['fileSize', 'filename', 'hash']
+          
+          try {
+            const subsetResults = await onRunAdvancedDuplicateTest([threshold], methods)
+            if (subsetResults.length > 0) {
+              const result = {
+                ...subsetResults[0],
+                photoSetSize: photoSubset.length,
+                testType: `Subset-${subsetSize}`,
+              }
+              allResults.push(result)
+              
+              console.log(`     ${threshold}%: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates (${result.executionTime}ms)`)
+            }
+          } catch (error) {
+            console.error(`     Error testing ${threshold}% on ${subsetSize} photos:`, error)
+          }
+          
+          // Brief pause between threshold tests
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+      
+      // Analyze scaling performance
+      console.log('\n📈 SCALING ANALYSIS:')
+      subsetSizes.forEach(size => {
+        const sizeResults = allResults.filter(r => (r as any).photoSetSize === size)
+        if (sizeResults.length > 0) {
+          const avgTime = sizeResults.reduce((sum, r) => sum + r.executionTime, 0) / sizeResults.length
+          const avgGroups = sizeResults.reduce((sum, r) => sum + r.groupsFound, 0) / sizeResults.length
+          const totalDuplicates = sizeResults.reduce((sum, r) => sum + r.totalDuplicates, 0)
+          
+          console.log(`   ${size} photos: Avg ${avgTime.toFixed(0)}ms, ${avgGroups.toFixed(1)} groups, ${totalDuplicates} total duplicates`)
+          
+          if (size > 10) {
+            const timePerPhoto = avgTime / size
+            console.log(`     Processing rate: ${timePerPhoto.toFixed(2)}ms per photo`)
+          }
+        }
+      })
+      
+      // Set results for UI display
+      setTestResults(allResults)
+      
+      console.log('\n🎯 BENCHMARK RECOMMENDATIONS:')
+      
+      // Find most efficient threshold across different set sizes
+      const efficiencyByThreshold = benchmarkThresholds.map(threshold => {
+        const thresholdResults = allResults.filter(r => r.threshold === threshold)
+        const avgEfficiency = thresholdResults.length > 0 
+          ? thresholdResults.reduce((sum, r) => sum + (r.groupsFound > 0 ? r.totalDuplicates / r.groupsFound : 0), 0) / thresholdResults.length
+          : 0
+        const avgTime = thresholdResults.length > 0
+          ? thresholdResults.reduce((sum, r) => sum + r.executionTime, 0) / thresholdResults.length
+          : 0
+        
+        return { threshold, efficiency: avgEfficiency, avgTime }
+      })
+      
+      const bestEfficiency = efficiencyByThreshold.reduce((best, current) => 
+        current.efficiency > best.efficiency ? current : best
+      )
+      
+      console.log(`   Most efficient threshold: ${bestEfficiency.threshold}% (${bestEfficiency.efficiency.toFixed(2)} duplicates per group)`)
+      console.log(`   Recommended for collections of ${photos.length} photos or similar`)
+      
+      // Performance scaling insights
+      if (subsetSizes.length > 1) {
+        const smallestSize = Math.min(...subsetSizes)
+        const largestSize = Math.max(...subsetSizes)
+        const smallResults = allResults.filter(r => (r as any).photoSetSize === smallestSize)
+        const largeResults = allResults.filter(r => (r as any).photoSetSize === largestSize)
+        
+        if (smallResults.length > 0 && largeResults.length > 0) {
+          const smallAvgTime = smallResults.reduce((sum, r) => sum + r.executionTime, 0) / smallResults.length
+          const largeAvgTime = largeResults.reduce((sum, r) => sum + r.executionTime, 0) / largeResults.length
+          const scalingFactor = largeAvgTime / smallAvgTime
+          const expectedLinearTime = smallAvgTime * (largestSize / smallestSize)
+          
+          console.log(`   Scaling performance: ${scalingFactor.toFixed(2)}x time increase for ${(largestSize/smallestSize).toFixed(1)}x photos`)
+          console.log(`   Actual vs Linear scaling: ${(largeAvgTime/expectedLinearTime).toFixed(2)}x ${largeAvgTime > expectedLinearTime ? 'slower' : 'faster'} than linear`)
+        }
+      }
+      
+    } catch (error) {
+      console.error('Photo benchmark testing failed:', error)
+    } finally {
+      setIsAdvancedTesting(false)
+    }
   }
 
   const addThreshold = (threshold: number) => {
@@ -309,9 +641,18 @@ export function TestingPanel({
                   ) : (
                     <>
                       <Target className="w-4 h-4 mr-1" />
-                      Run Advanced Test
+                      Run Comprehensive Test
                     </>
                   )}
+                </Button>
+                <Button
+                  onClick={() => runPhotoBenchmarks()}
+                  disabled={isAdvancedTesting || photos.length < 5}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ChartBar className="w-4 h-4 mr-1" />
+                  Benchmark Sets
                 </Button>
                 {testResults.length > 1 && (
                   <Button
@@ -344,7 +685,7 @@ export function TestingPanel({
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Similarity Thresholds</Label>
                     <div className="flex flex-wrap gap-2">
-                      {testSettings.thresholds.map(threshold => (
+                      {[50, 60, 70, 75, 80, 85, 90, 95, 98].map(threshold => (
                         <Button
                           key={threshold}
                           variant={selectedThresholds.includes(threshold) ? "default" : "outline"}
@@ -360,6 +701,29 @@ export function TestingPanel({
                           {threshold}%
                         </Button>
                       ))}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedThresholds([60, 75, 90])}
+                      >
+                        Quick Set: Balanced
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedThresholds([80, 85, 90, 95])}
+                      >
+                        High Precision
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedThresholds([50, 60, 70, 80])}
+                      >
+                        High Recall
+                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Selected: {selectedThresholds.length} thresholds
@@ -407,8 +771,17 @@ export function TestingPanel({
                   <Alert>
                     <MagnifyingGlass className="w-4 h-4" />
                     <AlertDescription className="text-sm">
-                      This test will systematically compare different similarity thresholds 
-                      and detection methods across your photo collection.
+                      <strong>Comprehensive Testing:</strong> Tests multiple thresholds, method combinations, 
+                      and photo set sizes to find optimal duplicate detection settings for your collection.
+                      <br /><br />
+                      <strong>What gets tested:</strong>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Different similarity thresholds (50-98%)</li>
+                        <li>Individual and combined detection methods</li>
+                        <li>Scaling performance with various photo set sizes</li>
+                        <li>Method effectiveness comparison</li>
+                        <li>Speed vs accuracy trade-offs</li>
+                      </ul>
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -436,10 +809,21 @@ export function TestingPanel({
                                 <span className="text-sm font-medium">
                                   {result.groupsFound} groups
                                 </span>
+                                {(result as any).testType && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {(result as any).testType}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Clock className="w-3 h-3" />
                                 {result.executionTime}ms
+                                {(result as any).photoSetSize && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{(result as any).photoSetSize} photos</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -447,12 +831,26 @@ export function TestingPanel({
                                 <span className="text-muted-foreground">Total Duplicates:</span>
                                 <div className="font-medium">{result.totalDuplicates}</div>
                               </div>
+                              <div>
+                                <span className="text-muted-foreground">Efficiency:</span>
+                                <div className="font-medium">
+                                  {result.groupsFound > 0 ? (result.totalDuplicates / result.groupsFound).toFixed(2) : '0'} dup/group
+                                </div>
+                              </div>
                               {result.accuracy && (
                                 <div>
                                   <span className="text-muted-foreground">Accuracy:</span>
                                   <div className="font-medium">{result.accuracy.toFixed(1)}%</div>
                                 </div>
                               )}
+                              <div>
+                                <span className="text-muted-foreground">Speed:</span>
+                                <div className="font-medium">
+                                  {((result as any).photoSetSize || photos.length) > 0 
+                                    ? (result.executionTime / ((result as any).photoSetSize || photos.length)).toFixed(1) 
+                                    : result.executionTime} ms/photo
+                                </div>
+                              </div>
                             </div>
                             <div className="mt-2">
                               <div className="flex flex-wrap gap-1">

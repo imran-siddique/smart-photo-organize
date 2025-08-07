@@ -296,33 +296,202 @@ function PhotoSorter() {
       return
     }
 
-    console.log('=== Starting Comprehensive Duplicate Detection Test Suite ===')
-    console.log(`Testing with ${photos.length} photos`)
-    console.log(`Provider: ${currentProvider}`)
+    console.log('🔬 === COMPREHENSIVE DUPLICATE DETECTION TEST SUITE ===')
+    console.log(`📊 Testing with ${photos.length} photos`)
+    console.log(`🔧 Provider: ${currentProvider}`)
+    console.log(`📁 File types: ${Object.keys(fileTypeStats).join(', ')}`)
+    console.log(`📂 Folders: ${Object.keys(folderStats).length} directories`)
     
-    // Test different threshold levels with multiple method combinations
-    const testConfigs = [
-      { thresholds: [50, 70, 85, 95], methods: ['fileSize', 'filename', 'hash'] },
-      { thresholds: [75, 85, 90], methods: ['fileSize', 'hash'] },
-      { thresholds: [80, 90, 95], methods: ['filename', 'hash'] },
-      { thresholds: [85], methods: ['hash'] }
+    // Enhanced test configurations for comprehensive analysis
+    const testConfigurations = [
+      {
+        name: 'High Precision Suite',
+        thresholds: [80, 85, 90, 95, 98],
+        methods: ['fileSize', 'filename', 'hash'],
+        description: 'Conservative approach - fewer false positives'
+      },
+      {
+        name: 'Balanced Detection Suite',
+        thresholds: [70, 75, 80, 85, 90],
+        methods: ['fileSize', 'filename', 'hash'],
+        description: 'Balanced precision and recall'
+      },
+      {
+        name: 'High Recall Suite',
+        thresholds: [50, 60, 70, 75, 80],
+        methods: ['fileSize', 'filename', 'hash'],
+        description: 'Aggressive approach - catches more potential duplicates'
+      },
+      {
+        name: 'Method Comparison Suite',
+        thresholds: [85],
+        methods: ['fileSize', 'filename', 'hash'],
+        description: 'Compare individual detection methods',
+        testIndividualMethods: true
+      }
     ]
     
-    for (const config of testConfigs) {
-      console.log(`\n--- Testing configuration: ${config.methods.join(' + ')} ---`)
+    const allTestResults = []
+    
+    for (const config of testConfigurations) {
+      console.log(`\n🧪 --- ${config.name} ---`)
+      console.log(`   ${config.description}`)
+      console.log(`   Thresholds: ${config.thresholds.join(', ')}%`)
+      console.log(`   Methods: ${config.methods.join(', ')}`)
       
-      const results = await runAdvancedDuplicateTest(config.thresholds, config.methods)
-      
-      console.log('Results for this configuration:')
-      results.forEach(result => {
-        console.log(`  ${result.threshold}%: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates, ${result.executionTime}ms`)
-      })
+      try {
+        const configResults = await runAdvancedDuplicateTest(config.thresholds, config.methods)
+        
+        console.log(`   Results:`)
+        configResults.forEach(result => {
+          const efficiency = result.groupsFound > 0 ? (result.totalDuplicates / result.groupsFound).toFixed(2) : '0'
+          const coverage = photos.length > 0 ? ((result.totalDuplicates / photos.length) * 100).toFixed(1) : '0'
+          console.log(`     ${result.threshold}%: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates`)
+          console.log(`       - Efficiency: ${efficiency} duplicates per group`)
+          console.log(`       - Coverage: ${coverage}% of photo collection`)
+          console.log(`       - Execution time: ${result.executionTime}ms`)
+        })
+        
+        allTestResults.push({
+          configuration: config.name,
+          results: configResults
+        })
+        
+        // Test individual methods if specified
+        if (config.testIndividualMethods && config.thresholds.length > 0) {
+          const testThreshold = config.thresholds[0]
+          console.log(`\n   🔍 Individual Method Testing at ${testThreshold}%:`)
+          
+          for (const method of ['fileSize', 'filename', 'hash']) {
+            try {
+              const methodResult = await runAdvancedDuplicateTest([testThreshold], [method])
+              if (methodResult.length > 0) {
+                const result = methodResult[0]
+                console.log(`     ${method}: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates (${result.executionTime}ms)`)
+              }
+            } catch (error) {
+              console.log(`     ${method}: Test failed - ${error.message}`)
+            }
+          }
+          
+          // Test method combinations
+          const methodCombinations = [
+            ['fileSize', 'filename'],
+            ['fileSize', 'hash'],
+            ['filename', 'hash']
+          ]
+          
+          console.log(`\n   🔗 Method Combination Testing at ${testThreshold}%:`)
+          for (const combo of methodCombinations) {
+            try {
+              const comboResult = await runAdvancedDuplicateTest([testThreshold], combo)
+              if (comboResult.length > 0) {
+                const result = comboResult[0]
+                console.log(`     ${combo.join(' + ')}: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates (${result.executionTime}ms)`)
+              }
+            } catch (error) {
+              console.log(`     ${combo.join(' + ')}: Test failed - ${error.message}`)
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error(`   ❌ Configuration failed: ${error.message}`)
+      }
       
       // Brief pause between configurations
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
     
-    toast.success('Comprehensive duplicate detection test completed - check console for detailed results')
+    // Generate comprehensive analysis
+    console.log('\n📊 === COMPREHENSIVE ANALYSIS ===')
+    
+    if (allTestResults.length > 0) {
+      // Find best performing configurations
+      let bestPrecisionConfig = null
+      let bestRecallConfig = null
+      let bestBalanceConfig = null
+      let maxGroups = 0
+      let maxDuplicates = 0
+      
+      allTestResults.forEach(({ configuration, results }) => {
+        const totalGroups = results.reduce((sum, r) => sum + r.groupsFound, 0)
+        const totalDuplicates = results.reduce((sum, r) => sum + r.totalDuplicates, 0)
+        const avgEfficiency = results.length > 0 ? totalDuplicates / Math.max(totalGroups, 1) : 0
+        const avgTime = results.reduce((sum, r) => sum + r.executionTime, 0) / Math.max(results.length, 1)
+        
+        if (totalGroups > maxGroups) {
+          maxGroups = totalGroups
+          bestRecallConfig = { configuration, totalGroups, totalDuplicates, avgTime }
+        }
+        
+        if (avgEfficiency > 0 && (!bestPrecisionConfig || avgEfficiency > bestPrecisionConfig.avgEfficiency)) {
+          bestPrecisionConfig = { configuration, avgEfficiency, totalGroups, totalDuplicates, avgTime }
+        }
+        
+        const balanceScore = (totalGroups * 0.4) + (avgEfficiency * 0.4) + ((1000 / Math.max(avgTime, 1)) * 0.2)
+        if (!bestBalanceConfig || balanceScore > bestBalanceConfig.balanceScore) {
+          bestBalanceConfig = { configuration, balanceScore, totalGroups, totalDuplicates, avgTime, avgEfficiency }
+        }
+      })
+      
+      console.log('\n🏆 PERFORMANCE WINNERS:')
+      if (bestRecallConfig) {
+        console.log(`   📈 Best for finding duplicates: ${bestRecallConfig.configuration}`)
+        console.log(`      - Found ${bestRecallConfig.totalGroups} groups with ${bestRecallConfig.totalDuplicates} duplicates`)
+        console.log(`      - Average time: ${bestRecallConfig.avgTime.toFixed(0)}ms`)
+      }
+      
+      if (bestPrecisionConfig) {
+        console.log(`   🎯 Best precision/efficiency: ${bestPrecisionConfig.configuration}`)
+        console.log(`      - Efficiency: ${bestPrecisionConfig.avgEfficiency.toFixed(2)} duplicates per group`)
+        console.log(`      - Found ${bestPrecisionConfig.totalGroups} groups with ${bestPrecisionConfig.totalDuplicates} duplicates`)
+      }
+      
+      if (bestBalanceConfig) {
+        console.log(`   ⚖️ Best overall balance: ${bestBalanceConfig.configuration}`)
+        console.log(`      - Balance score: ${bestBalanceConfig.balanceScore.toFixed(2)}`)
+        console.log(`      - ${bestBalanceConfig.totalGroups} groups, ${bestBalanceConfig.totalDuplicates} duplicates`)
+        console.log(`      - Efficiency: ${(bestBalanceConfig.avgEfficiency || 0).toFixed(2)}, Time: ${bestBalanceConfig.avgTime.toFixed(0)}ms`)
+      }
+    }
+    
+    // Photo collection insights
+    console.log('\n📋 COLLECTION INSIGHTS:')
+    console.log(`   📁 Total photos analyzed: ${photos.length}`)
+    console.log(`   📊 File type diversity: ${Object.keys(fileTypeStats).length} types`)
+    console.log(`   📂 Folder structure depth: ${Object.keys(folderStats).length} folders`)
+    
+    if (Object.keys(fileTypeStats).length > 0) {
+      const topFileType = Object.entries(fileTypeStats).reduce((a, b) => a[1] > b[1] ? a : b)
+      console.log(`   📄 Most common file type: ${topFileType[0]} (${topFileType[1]} files, ${((topFileType[1] / photos.length) * 100).toFixed(1)}%)`)
+    }
+    
+    // Recommendations
+    console.log('\n💡 RECOMMENDATIONS FOR YOUR COLLECTION:')
+    console.log(`   🎯 For your ${photos.length}-photo collection:`)
+    
+    if (photos.length < 50) {
+      console.log(`      - Use 80-90% thresholds for good precision`)
+      console.log(`      - All detection methods recommended (fileSize + filename + hash)`)
+      console.log(`      - Performance should be fast with this collection size`)
+    } else if (photos.length < 200) {
+      console.log(`      - Use 75-85% thresholds for balanced detection`)
+      console.log(`      - Consider fileSize + hash for faster processing`)
+      console.log(`      - Monitor execution times with larger batches`)
+    } else {
+      console.log(`      - Use 70-80% thresholds to handle scale effectively`)
+      console.log(`      - Prioritize fileSize + hash for performance`)
+      console.log(`      - Consider batch processing for very large collections`)
+    }
+    
+    const fileTypeCount = Object.keys(fileTypeStats).length
+    if (fileTypeCount > 3) {
+      console.log(`      - High file type diversity (${fileTypeCount} types) - filename matching may be less effective`)
+    }
+    
+    console.log('\n✅ Comprehensive duplicate detection test completed!')
+    toast.success('Comprehensive duplicate detection test completed - check console for detailed analysis')
   }
 
   const generateTestFiles = async () => {
