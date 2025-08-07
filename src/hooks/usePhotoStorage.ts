@@ -1,8 +1,8 @@
 import React from 'react'
 import { useKV } from '@github/spark/hooks'
 import { toast } from 'sonner'
-import { localPhotoService, LocalPhoto, LocalCategory, LocalDuplicateGroup, DuplicateDetectionOptions, LocalPhotoService } from '@/services/local'
-import { oneDriveService, OneDriveItem, CategoryPattern, DuplicateGroup } from '@/services/onedrive'
+import { localPhotoService, LocalPhoto, LocalCategory, LocalDuplicateGroup, DuplicateDetectionOptions } from '@/services/local'
+import { oneDriveService, OneDriveItem, CategoryPattern, DuplicateGroup, OneDriveUser } from '@/services/onedrive'
 
 type StorageProvider = 'local' | 'onedrive'
 
@@ -49,7 +49,7 @@ export function usePhotoStorage() {
   const [localDuplicates, setLocalDuplicates] = useKV<LocalDuplicateGroup[]>('local-duplicates', [])
   
   // OneDrive state
-  const [oneDriveUser, setOneDriveUser] = React.useState(null)
+  const [oneDriveUser, setOneDriveUser] = React.useState<OneDriveUser | null>(null)
   const [oneDrivePhotos, setOneDrivePhotos] = React.useState<OneDriveItem[]>([])
   const [oneDriveCategories, setOneDriveCategories] = useKV<CategoryPattern[]>('onedrive-categories', [])
   const [oneDriveDuplicates, setOneDriveDuplicates] = React.useState<DuplicateGroup[]>([])
@@ -82,9 +82,9 @@ export function usePhotoStorage() {
     size: item.size,
     lastModified: item.lastModifiedDateTime,
     url: `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`,
-    thumbnailUrl: oneDriveService.getThumbnailUrl(item),
+    thumbnailUrl: oneDriveService.getThumbnailUrl(item) || undefined,
     dimensions: item.image ? { width: item.image.width, height: item.image.height } : undefined,
-    folder: item.parentReference?.path,
+    folder: item.parentReference?.path || undefined,
     provider: 'onedrive'
   })
 
@@ -108,7 +108,7 @@ export function usePhotoStorage() {
   // Get unified data based on current provider
   const photos = React.useMemo(() => {
     if (currentProvider === 'local') {
-      return localPhotos.map(convertLocalToUnified)
+      return (localPhotos || []).map(convertLocalToUnified)
     } else {
       return oneDrivePhotos.map(convertOneDriveToUnified)
     }
@@ -116,15 +116,15 @@ export function usePhotoStorage() {
 
   const categories = React.useMemo(() => {
     if (currentProvider === 'local') {
-      return localCategories.map(convertLocalCategoryToUnified)
+      return (localCategories || []).map(convertLocalCategoryToUnified)
     } else {
-      return oneDriveCategories.map(convertOneDriveCategoryToUnified)
+      return (oneDriveCategories || []).map(convertOneDriveCategoryToUnified)
     }
   }, [currentProvider, localCategories, oneDriveCategories])
 
   const duplicateGroups = React.useMemo(() => {
     if (currentProvider === 'local') {
-      return localDuplicates.map(convertLocalDuplicateToUnified)
+      return (localDuplicates || []).map(convertLocalDuplicateToUnified)
     } else {
       return oneDriveDuplicates.map(convertOneDriveDuplicateToUnified)
     }
@@ -146,8 +146,8 @@ export function usePhotoStorage() {
   const loadLocalPhotos = async (files?: FileList | File[]) => {
     if (!files) {
       try {
-        if (LocalPhotoService.isFileSystemAccessSupported()) {
-          const dirHandle = await window.showDirectoryPicker()
+        if (localPhotoService.isFileSystemAccessSupported()) {
+          const dirHandle = await (window as any).showDirectoryPicker()
           setIsLoadingPhotos(true)
           setProgress({ operation: 'Loading photos from folder...', current: 0, total: 100 })
           
@@ -284,7 +284,7 @@ export function usePhotoStorage() {
   const createCategory = async (categoryData: Omit<UnifiedCategory, 'id'>) => {
     try {
       if (currentProvider === 'local') {
-        const newCategory = localPhotoService.createCategory(categoryData)
+        const newCategory = await localPhotoService.createCategory(categoryData)
         setLocalCategories(localPhotoService.getCategories())
         toast.success(`Created category: ${newCategory.name}`)
       } else {
@@ -293,7 +293,7 @@ export function usePhotoStorage() {
           ...categoryData,
           id: `category_${Date.now()}`
         }
-        setOneDriveCategories(current => [...current, newCategory])
+        setOneDriveCategories(current => [...(current || []), newCategory])
         toast.success(`Created category: ${newCategory.name}`)
       }
     } catch (error) {
@@ -305,14 +305,14 @@ export function usePhotoStorage() {
   const updateCategory = async (id: string, updates: Partial<UnifiedCategory>) => {
     try {
       if (currentProvider === 'local') {
-        const updated = localPhotoService.updateCategory(id, updates)
+        const updated = await localPhotoService.updateCategory(id, updates)
         if (updated) {
           setLocalCategories(localPhotoService.getCategories())
           toast.success('Category updated')
         }
       } else {
         setOneDriveCategories(current =>
-          current.map(cat => cat.id === id ? { ...cat, ...updates } : cat)
+          (current || []).map(cat => cat.id === id ? { ...cat, ...updates } : cat)
         )
         toast.success('Category updated')
       }
@@ -325,13 +325,13 @@ export function usePhotoStorage() {
   const deleteCategory = async (id: string) => {
     try {
       if (currentProvider === 'local') {
-        const deleted = localPhotoService.deleteCategory(id)
+        const deleted = await localPhotoService.deleteCategory(id)
         if (deleted) {
           setLocalCategories(localPhotoService.getCategories())
           toast.success('Category deleted')
         }
       } else {
-        setOneDriveCategories(current => current.filter(cat => cat.id !== id))
+        setOneDriveCategories(current => (current || []).filter(cat => cat.id !== id))
         toast.success('Category deleted')
       }
     } catch (error) {
@@ -343,7 +343,7 @@ export function usePhotoStorage() {
   const deletePhotos = async (photoIds: string[]) => {
     try {
       if (currentProvider === 'local') {
-        localPhotoService.deletePhotos(photoIds)
+        await localPhotoService.deletePhotos(photoIds)
         setLocalPhotos(localPhotoService.getPhotos())
         toast.success(`Deleted ${photoIds.length} photos`)
       } else {
@@ -400,7 +400,7 @@ export function usePhotoStorage() {
       }
       
       if (categoryId) {
-        const category = oneDriveCategories.find(cat => cat.id === categoryId)
+        const category = (oneDriveCategories || []).find(cat => cat.id === categoryId)
         if (category) {
           filtered = filtered.filter(photo =>
             category.patterns.some(pattern =>
@@ -423,7 +423,7 @@ export function usePhotoStorage() {
     // Provider management
     currentProvider,
     switchProvider,
-    isFileSystemAccessSupported: LocalPhotoService.isFileSystemAccessSupported(),
+    isFileSystemAccessSupported: localPhotoService.isFileSystemAccessSupported(),
     
     // Authentication (OneDrive)
     isOneDriveAuthenticated: oneDriveService.isAuthenticated(),

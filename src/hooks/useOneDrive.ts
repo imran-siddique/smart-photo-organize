@@ -83,12 +83,12 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
 
   // Sync categories to state
   React.useEffect(() => {
-    setState(prev => ({ ...prev, categories }));
+    setState(prev => ({ ...prev, categories: categories || [] }));
   }, [categories]);
 
   // Sync duplicate groups to state
   React.useEffect(() => {
-    setState(prev => ({ ...prev, duplicateGroups }));
+    setState(prev => ({ ...prev, duplicateGroups: duplicateGroups || [] }));
   }, [duplicateGroups]);
 
   const authenticate = async (): Promise<void> => {
@@ -198,7 +198,7 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
         id: `category-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       };
 
-      const updatedCategories = [...categories, newCategory];
+      const updatedCategories = [...(categories || []), newCategory];
       setCategories(updatedCategories);
 
       // Create folder in OneDrive if specified
@@ -215,7 +215,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
 
   const updateCategory = async (id: string, updates: Partial<CategoryPattern>): Promise<void> => {
     try {
-      const updatedCategories = categories.map(cat =>
+      const currentCategories = categories || []
+      const updatedCategories = currentCategories.map(cat =>
         cat.id === id ? { ...cat, ...updates } : cat
       );
       setCategories(updatedCategories);
@@ -228,7 +229,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
 
   const deleteCategory = async (id: string): Promise<void> => {
     try {
-      const updatedCategories = categories.filter(cat => cat.id !== id);
+      const currentCategories = categories || []
+      const updatedCategories = currentCategories.filter(cat => cat.id !== id);
       setCategories(updatedCategories);
       toast.success('Category deleted successfully');
     } catch (error) {
@@ -239,7 +241,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
 
   const moveItemsToCategory = async (itemIds: string[], categoryId: string): Promise<void> => {
     try {
-      const category = categories.find(cat => cat.id === categoryId);
+      const currentCategories = categories || []
+      const category = currentCategories.find(cat => cat.id === categoryId);
       if (!category) {
         throw new Error('Category not found');
       }
@@ -385,7 +388,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
       const itemsToDelete: string[] = [];
 
       for (const groupId of groupIds) {
-        const group = duplicateGroups.find(g => g.id === groupId);
+        const currentDuplicateGroups = duplicateGroups || []
+        const group = currentDuplicateGroups.find(g => g.id === groupId);
         if (!group || group.items.length < 2) continue;
 
         let keepItem: OneDriveItem;
@@ -432,7 +436,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
       }
 
       // Remove processed groups
-      const updatedGroups = duplicateGroups.filter(group => !groupIds.includes(group.id));
+      const currentDuplicateGroups = duplicateGroups || []
+      const updatedGroups = currentDuplicateGroups.filter(group => !groupIds.includes(group.id));
       setDuplicateGroups(updatedGroups);
 
       setState(prev => ({ ...prev, progress: null }));
@@ -455,7 +460,8 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
     }
 
     if (categoryId) {
-      const category = categories.find(cat => cat.id === categoryId);
+      const currentCategories = categories || []
+      const category = currentCategories.find(cat => cat.id === categoryId);
       if (category) {
         filtered = filtered.filter(item =>
           category.patterns.some(pattern =>

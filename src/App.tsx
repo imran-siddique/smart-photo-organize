@@ -1,5 +1,5 @@
 import React from 'react'
-import { MicrosoftOutlookLogo, Image, Trash2, Eye, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, SignOut, CloudArrowDown, Funnel, SortAscending, Check, X, Folder, Upload } from '@phosphor-icons/react'
+import { MicrosoftOutlookLogo, Image, Trash, Eye, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, SignOut, CloudArrowDown, Funnel, SortAscending, Check, X, Folder, Upload } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -560,7 +560,7 @@ function PhotoSorter() {
                 </SelectContent>
               </Select>
 
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={(value: 'name' | 'date' | 'size') => setSortBy(value)}>
                 <SelectTrigger className="w-32">
                   <SortAscending className="w-4 h-4 mr-2" />
                   <SelectValue />
@@ -700,7 +700,7 @@ function PhotoSorter() {
                           onClick={() => deleteCategory(category.id)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -888,7 +888,7 @@ function PhotoSorter() {
                           variant="destructive"
                           onClick={deleteSelectedItems}
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
+                          <Trash className="w-4 h-4 mr-1" />
                           Delete
                         </Button>
                         
@@ -1208,7 +1208,7 @@ function PhotoSorter() {
                                 variant="destructive"
                                 onClick={() => deletePhotos([photo.id])}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash className="w-4 h-4" />
                               </Button>
                             </div>
                             
@@ -1267,7 +1267,7 @@ function PhotoSorter() {
                           variant="destructive"
                           onClick={() => deletePhotos([photo.id])}
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
+                          <Trash className="w-4 h-4 mr-1" />
                           Delete
                         </Button>
                       </div>
