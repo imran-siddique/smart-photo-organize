@@ -1,4 +1,5 @@
 // Local File System Service for Photo Organization
+import { toast } from 'sonner'
 
 export interface LocalPhoto {
   id: string
@@ -110,7 +111,7 @@ class LocalPhotoService {
       
       for await (const [name, fileHandle] of handle.entries()) {
         if (fileHandle.kind === 'file') {
-          const file = await fileHandle.getFile()
+          const file = await (fileHandle as FileSystemFileHandle).getFile()
           const isImage = this.isImageFile(file)
           
           console.log(`Found file: ${currentPath}/${name}, Type: ${file.type}, Is Image: ${isImage}`)
@@ -180,6 +181,8 @@ class LocalPhotoService {
 
   private getTypeFromExtension(filename: string): string {
     const extension = filename.toLowerCase().split('.').pop()
+    if (!extension) return 'image/unknown'
+    
     const typeMap: Record<string, string> = {
       'jpg': 'image/jpeg',
       'jpeg': 'image/jpeg',

@@ -42,6 +42,15 @@ export interface Progress {
   total: number
 }
 
+export interface TestResult {
+  threshold: number
+  methods: string[]
+  groupsFound: number
+  totalDuplicates: number
+  executionTime: number
+  accuracy?: number
+}
+
 export function usePhotoStorage() {
   const [currentProvider, setCurrentProvider] = useKV<StorageProvider>('photo-storage-provider', 'local')
   const [localPhotos, setLocalPhotos] = useKV<LocalPhoto[]>('local-photos', [])
@@ -427,6 +436,69 @@ export function usePhotoStorage() {
     }
   }
 
+  const runAdvancedDuplicateTest = async (thresholds: number[], methods: string[]): Promise<TestResult[]> => {
+    const results: TestResult[] = []
+    
+    for (const threshold of thresholds) {
+      const startTime = performance.now()
+      
+      const options: DuplicateDetectionOptions = {
+        similarityThreshold: threshold,
+        checkFileSize: methods.includes('fileSize'),
+        checkFilename: methods.includes('filename'),
+        checkHash: methods.includes('hash')
+      }
+      
+      try {
+        setProgress({ operation: `Testing ${threshold}% threshold...`, current: 0, total: thresholds.length })
+        
+        let groups: UnifiedDuplicateGroup[] = []
+        
+        if (currentProvider === 'local') {
+          const localGroups = await localPhotoService.findDuplicates(options)
+          groups = localGroups.map(convertLocalDuplicateToUnified)
+        } else {
+          const oneDriveGroups = await oneDriveService.findDuplicatePhotos(oneDrivePhotos, options)
+          groups = oneDriveGroups.map(convertOneDriveDuplicateToUnified)
+        }
+        
+        const endTime = performance.now()
+        const executionTime = Math.round(endTime - startTime)
+        
+        const totalDuplicates = groups.reduce((sum, group) => sum + group.photos.length, 0)
+        
+        // Calculate accuracy based on group quality
+        const accuracy = groups.length > 0 ? 
+          groups.reduce((sum, group) => sum + group.similarity, 0) / groups.length : 100
+        
+        results.push({
+          threshold,
+          methods,
+          groupsFound: groups.length,
+          totalDuplicates,
+          executionTime,
+          accuracy
+        })
+        
+        console.log(`Threshold ${threshold}%: ${groups.length} groups, ${totalDuplicates} duplicates (${executionTime}ms)`)
+        
+      } catch (error) {
+        console.error(`Error testing threshold ${threshold}%:`, error)
+        results.push({
+          threshold,
+          methods,
+          groupsFound: 0,
+          totalDuplicates: 0,
+          executionTime: 0,
+          accuracy: 0
+        })
+      }
+    }
+    
+    setProgress(null)
+    return results
+  }
+
   // Auto-filter when photos change
   React.useEffect(() => {
     setFilteredPhotos(photos)
@@ -465,6 +537,7 @@ export function usePhotoStorage() {
     deleteCategory,
     deletePhotos,
     runDuplicateDetection,
+    runAdvancedDuplicateTest,
     filterPhotos,
     
     // Utility

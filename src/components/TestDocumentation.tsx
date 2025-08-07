@@ -105,20 +105,73 @@ export function TestDocumentation() {
     {
       id: 'duplicate-detection',
       category: 'Duplicate Detection',
-      title: 'Advanced Duplicate Detection',
-      description: 'Test various duplicate scenarios',
+      title: 'Advanced Duplicate Detection Testing',
+      description: 'Test various duplicate scenarios with different thresholds',
       steps: [
         'Create identical copies: original.jpg → original_copy.jpg',
         'Create resized versions: original.jpg → original_small.jpg',
         'Create renamed versions: vacation.jpg → holiday.jpg (same file)',
-        'Run duplicate detection with different threshold settings',
-        'Test hash-based, size-based, and filename-based detection'
+        'Go to Testing panel → Duplicates tab',
+        'Configure different similarity thresholds (50%, 75%, 85%, 95%)',
+        'Enable/disable different detection methods (file size, filename, hash)',
+        'Run "Advanced Test" and compare results across thresholds',
+        'Use "Analyze Results" to find optimal settings'
       ],
       expectedResults: [
         'Identical files should be detected as 100% similar',
-        'Resized versions may be detected based on filename similarity',
+        'Lower thresholds should find more potential duplicates',
+        'Higher thresholds should be more precise',
         'Hash detection should find exact duplicate content',
-        'Different thresholds should affect detection sensitivity'
+        'Different thresholds should affect detection sensitivity',
+        'Performance comparison should show execution times',
+        'Best result recommendation should be provided'
+      ]
+    },
+    {
+      id: 'threshold-comparison',
+      category: 'Duplicate Detection',
+      title: 'Similarity Threshold Comparison',
+      description: 'Compare detection effectiveness across similarity thresholds',
+      steps: [
+        'Prepare a diverse set of 20+ photos with known duplicates',
+        'Include exact duplicates, near-duplicates, and unique photos',
+        'Use Testing panel → Duplicates tab → Advanced Test',
+        'Select multiple thresholds: 65%, 75%, 85%, 90%, 95%',
+        'Enable all detection methods (size, filename, hash)',
+        'Run test and observe results for each threshold',
+        'Check console for detailed comparison analysis',
+        'Note execution times and accuracy ratings'
+      ],
+      expectedResults: [
+        'Lower thresholds (65-75%) should find more groups but may include false positives',
+        'Higher thresholds (85-95%) should be more precise with fewer false positives',
+        'Execution time should vary based on photo count and methods enabled',
+        'Console should show detailed breakdown for each threshold',
+        'Performance comparison charts should visualize results',
+        'System should recommend optimal threshold based on results'
+      ]
+    },
+    {
+      id: 'method-comparison',
+      category: 'Duplicate Detection',
+      title: 'Detection Method Comparison',
+      description: 'Test different detection methods individually and combined',
+      steps: [
+        'Prepare test set with various duplicate types',
+        'Test with only "File Size" method enabled',
+        'Test with only "Filename Similarity" method enabled', 
+        'Test with only "Content Hash" method enabled',
+        'Test with all methods combined',
+        'Compare results and execution times',
+        'Run multiple iterations to verify consistency'
+      ],
+      expectedResults: [
+        'File size method should catch exact size matches quickly',
+        'Filename method should find renamed versions of same photos',
+        'Hash method should be most accurate for exact content matches',
+        'Combined methods should provide best overall accuracy',
+        'Different methods should show varying execution times',
+        'Results should be consistent across test runs'
       ]
     },
     {

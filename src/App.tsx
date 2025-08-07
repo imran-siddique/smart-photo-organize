@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { usePhotoStorage, UnifiedPhoto, UnifiedCategory } from '@/hooks/usePhotoStorage'
+import { usePhotoStorage, UnifiedPhoto, UnifiedCategory, TestResult } from '@/hooks/usePhotoStorage'
 import { TestingPanel } from '@/components/TestingPanel'
 import { TestDocumentation } from '@/components/TestDocumentation'
 import { localPhotoService } from '@/services/local'
@@ -45,6 +45,7 @@ function PhotoSorter() {
     deleteCategory,
     deletePhotos,
     runDuplicateDetection,
+    runAdvancedDuplicateTest,
     filterPhotos,
     formatFileSize
   } = usePhotoStorage()
@@ -295,31 +296,93 @@ function PhotoSorter() {
       return
     }
 
-    console.log('=== Starting Advanced Duplicate Detection Test ===')
+    console.log('=== Starting Comprehensive Duplicate Detection Test Suite ===')
     console.log(`Testing with ${photos.length} photos`)
+    console.log(`Provider: ${currentProvider}`)
     
-    // Test different threshold levels
-    const thresholds = [50, 70, 85, 95]
+    // Test different threshold levels with multiple method combinations
+    const testConfigs = [
+      { thresholds: [50, 70, 85, 95], methods: ['fileSize', 'filename', 'hash'] },
+      { thresholds: [75, 85, 90], methods: ['fileSize', 'hash'] },
+      { thresholds: [80, 90, 95], methods: ['filename', 'hash'] },
+      { thresholds: [85], methods: ['hash'] }
+    ]
     
-    for (const threshold of thresholds) {
-      console.log(`\n--- Testing with ${threshold}% similarity threshold ---`)
+    for (const config of testConfigs) {
+      console.log(`\n--- Testing configuration: ${config.methods.join(' + ')} ---`)
       
-      await runDuplicateDetection({
-        checkFileSize: true,
-        checkFilename: true,
-        checkHash: true,
-        similarityThreshold: threshold
+      const results = await runAdvancedDuplicateTest(config.thresholds, config.methods)
+      
+      console.log('Results for this configuration:')
+      results.forEach(result => {
+        console.log(`  ${result.threshold}%: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates, ${result.executionTime}ms`)
       })
       
-      console.log(`Found ${duplicateGroups.length} duplicate groups with ${threshold}% threshold`)
+      // Brief pause between configurations
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
     
-    toast.success('Advanced duplicate detection test completed - check console for details')
+    toast.success('Comprehensive duplicate detection test completed - check console for detailed results')
   }
 
   const generateTestFiles = async () => {
-    // This would create sample test files in a real implementation
-    toast.info('Test file generation would create sample photos with various formats and structures')
+    console.log('=== Test File Generation Guide ===')
+    console.log('For comprehensive testing, create test files with the following characteristics:')
+    
+    const testScenarios = [
+      {
+        name: 'Exact Duplicates',
+        description: 'Identical files with same content but different names',
+        examples: ['photo.jpg', 'photo_copy.jpg', 'photo (1).jpg']
+      },
+      {
+        name: 'Similar Names',
+        description: 'Different content but very similar filenames',
+        examples: ['beach_vacation_2023.jpg', 'beach_vacation_2024.jpg', 'beach_vacation_edit.jpg']
+      },
+      {
+        name: 'Size Variations',
+        description: 'Same image at different resolutions/qualities',
+        examples: ['high_res_photo.jpg (2MB)', 'medium_res_photo.jpg (500KB)', 'thumbnail_photo.jpg (50KB)']
+      },
+      {
+        name: 'Format Variations',
+        description: 'Same image in different formats',
+        examples: ['image.jpg', 'image.png', 'image.webp', 'image.heic']
+      },
+      {
+        name: 'Edge Cases',
+        description: 'Unusual filenames and sizes',
+        examples: ['файл.jpg (unicode)', 'file with spaces.png', 'very-long-filename-with-many-words.jpeg']
+      }
+    ]
+    
+    testScenarios.forEach((scenario, index) => {
+      console.log(`\n${index + 1}. ${scenario.name}:`)
+      console.log(`   ${scenario.description}`)
+      console.log(`   Examples: ${scenario.examples.join(', ')}`)
+    })
+    
+    console.log('\n=== Recommended Folder Structure ===')
+    const folderStructure = {
+      'Test_Photos': {
+        'Duplicates': ['exact_copy_1.jpg', 'exact_copy_2.jpg'],
+        'Similar': ['beach_2023.jpg', 'beach_2024.jpg', 'beach_edited.jpg'],
+        'Formats': ['sample.jpg', 'sample.png', 'sample.webp'],
+        'Large_Files': ['high_res_1.jpg (>5MB)', 'high_res_2.jpg (>5MB)'],
+        'Small_Files': ['thumbnail_1.jpg (<100KB)', 'thumbnail_2.jpg (<100KB)'],
+        'Unicode': ['测试.jpg', 'φωτογραφία.png', 'фото.jpeg'],
+        'Nested': {
+          'Level_2': {
+            'Level_3': ['deep_photo_1.jpg', 'deep_photo_2.png']
+          }
+        }
+      }
+    }
+    
+    console.log(JSON.stringify(folderStructure, null, 2))
+    
+    toast.info('Test file generation guide printed to console - create these file structures for comprehensive testing')
   }
   // File input handler for local photos with enhanced logging  
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -656,6 +719,7 @@ function PhotoSorter() {
               fileTypeStats={fileTypeStats}
               folderStats={folderStats}
               onTestDuplicates={testAdvancedDuplicateDetection}
+              onRunAdvancedDuplicateTest={runAdvancedDuplicateTest}
               onGenerateTestFiles={generateTestFiles}
               isTestingInProgress={isDuplicateDetectionRunning}
             />
