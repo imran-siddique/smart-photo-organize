@@ -2,34 +2,33 @@
 
 export interface LocalPhoto {
   id: string
+  name: string
   type: string
   size: number
-  type: string
   lastModified: number
-  dimensions
   url: string // Object URL for display
   thumbnailUrl?: string
   folder: string
   dimensions?: {
     width: number
-  patterns: string
+    height: number
   }
-e
-
-  checkFileSize: boolean
-  checkHash:
 }
-export class LocalPh
-  private categ
 
-  async loadPhotosF
-    const fileArray
- 
+export interface LocalCategory {
+  id: string
+  name: string
+  patterns: string[]
+  folder: string
+  color: string
+  autoSort: boolean
+  sortOrder: number
+}
 
-          newPhotos.push(photo)
-      }
-
-    return newPhotos
+export interface LocalDuplicateGroup {
+  id: string
+  photos: LocalPhoto[]
+  similarity: number
   reason: string[]
 }
 
@@ -61,355 +60,284 @@ class LocalPhotoService {
 
     this.photos = [...this.photos, ...newPhotos]
     return newPhotos
-   
+  }
 
-        resolve({ width: img.naturalWidth, height: img.naturalHeight })
-      }
+  async loadPhotosFromDirectory(dirHandle: FileSystemDirectoryHandle): Promise<LocalPhoto[]> {
+    const newPhotos: LocalPhoto[] = []
     
-      }
-    })
-
-    try {
-      const ctx = canvas.getContext('2d
-
-      return new Promise
-          const maxSize = 200
-          
-          c
-          ctx.drawImage(img, 0, 0, canvas.width, 
-          canvas.toBlob((blob) => {
-              resolve(URL.createObjectURL(blob))
-              resolve(null)
-            URL.revok
+    for await (const [name, handle] of dirHandle.entries()) {
+      if (handle.kind === 'file') {
+        const file = await handle.getFile()
+        if (this.isImageFile(file)) {
+          const photo = await this.createPhotoFromFile(file, dirHandle.name)
+          if (photo) {
+            newPhotos.push(photo)
+          }
         }
-          URL.
-        }
+      } else if (handle.kind === 'directory') {
+        // Recursively process subdirectories
+        const subPhotos = await this.loadPhotosFromDirectory(handle)
+        newPhotos.push(...subPhotos)
       }
-      console.error('
     }
 
-
+    this.photos = [...this.photos, ...newPhotos]
+    return newPhotos
   }
-  // Photo Managemen
-   
 
-    return this.photos.find(photo => photo.id === id)
-
-    const idsToDelete = new Set(ph
-    // Clean up object URLs
-      .filter(photo => idsToDelete.has(photo.id))
-      
-          URL.revokeObjectURL(pho
-      })
-    this.photos = this.p
-
-    // Clean up all obje
-      URL.revokeObjectURL(photo.url)
-        URL.r
-    })
-    this.photos = []
+  private isImageFile(file: File): boolean {
+    return file.type.startsWith('image/')
   }
-  // Ca
 
+  private async createPhotoFromFile(file: File, folderName = ''): Promise<LocalPhoto | null> {
+    try {
+      const dimensions = await this.getImageDimensions(file)
+      const thumbnailUrl = await this.createThumbnail(file)
 
-    const newCategory: LocalCategory = {
-      id: this.generateId
-    
-    ret
+      const photo: LocalPhoto = {
+        id: `${file.name}_${file.size}_${file.lastModified}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified,
+        url: URL.createObjectURL(file),
+        thumbnailUrl,
+        folder: folderName,
+        dimensions
+      }
 
-    const index = 
+      return photo
+    } catch (error) {
+      console.error('Error creating photo:', error)
+      return null
+    }
+  }
 
-    return this.categories[index]
-
-    c
-
-
-
-  categorizePhotos(): void {
-      const matchingCategory 
-          photo.name.toLow
+  private async getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
         resolve({ width: img.naturalWidth, height: img.naturalHeight })
         URL.revokeObjectURL(img.src)
-       
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src)
-        resolve(undefined)
       }
+      img.onerror = reject
       img.src = URL.createObjectURL(file)
     })
-   
+  }
 
-  private async createThumbnail(file: File): Promise<string | null> {
+  private async createThumbnail(file: File): Promise<string | undefined> {
     try {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
-      if (!ctx) return null
+      if (!ctx) return undefined
 
-      const img = new Image()
       return new Promise((resolve) => {
+        const img = new Image()
         img.onload = () => {
           const maxSize = 200
-          const ratio = Math.min(maxSize / img.naturalWidth, maxSize / img.naturalHeight)
+          const ratio = Math.min(maxSize / img.width, maxSize / img.height)
           
-          canvas.width = img.naturalWidth * ratio
-          canvas.height = img.naturalHeight * ratio
+          canvas.width = img.width * ratio
+          canvas.height = img.height * ratio
           
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-          
           canvas.toBlob((blob) => {
             if (blob) {
               resolve(URL.createObjectURL(blob))
             } else {
-              resolve(null)
+              resolve(undefined)
             }
             URL.revokeObjectURL(img.src)
           }, 'image/jpeg', 0.8)
         }
         img.onerror = () => {
           URL.revokeObjectURL(img.src)
-          resolve(null)
+          resolve(undefined)
         }
         img.src = URL.createObjectURL(file)
       })
     } catch (error) {
       console.error('Error creating thumbnail:', error)
-      return null
+      return undefined
     }
   }
 
+  // Photo Management
+  getPhotos(): LocalPhoto[] {
+    return this.photos
+  }
+
+  getPhotoById(id: string): LocalPhoto | undefined {
+    return this.photos.find(photo => photo.id === id)
+  }
+
+  deletePhotos(photoIds: string[]): void {
+    const idsToDelete = new Set(photoIds)
+    
+    // Clean up object URLs
+    this.photos
+      .filter(photo => idsToDelete.has(photo.id))
+      .forEach(photo => {
+        URL.revokeObjectURL(photo.url)
+        if (photo.thumbnailUrl) {
+          URL.revokeObjectURL(photo.thumbnailUrl)
         }
-        console.warn('Hash calculation faile
+      })
+    
+    this.photos = this.photos.filter(photo => !idsToDelete.has(photo.id))
+  }
+
+  // Category Management
+  getCategories(): LocalCategory[] {
+    return this.categories.sort((a, b) => a.sortOrder - b.sortOrder)
+  }
+
+  createCategory(categoryData: Omit<LocalCategory, 'id'>): LocalCategory {
+    const newCategory: LocalCategory = {
+      ...categoryData,
+      id: `category_${Date.now()}`
     }
-   
-
-      
-        score += 20
-      } else if (widthDiff 
-   
-
-    return { score: Math.min(100, score), reason
-
-   
-
-
-      for (let j = i + 1; j < photos.leng
     
-      }
-
+    this.categories.push(newCategory)
+    return newCategory
   }
-  private calculateNameSi
-    const n1 = normalize(name1)
 
+  updateCategory(id: string, updates: Partial<LocalCategory>): LocalCategory | null {
+    const index = this.categories.findIndex(cat => cat.id === id)
+    if (index === -1) return null
 
-    const
-    if (
-
+    this.categories[index] = { ...this.categories[index], ...updates }
+    return this.categories[index]
   }
-  p
 
-    for (let j = 0; j <= s
-    for (let j = 1; j <= str2.l
-        const indicator = str1[i -
-          matrix[j][i - 1] + 1,
-          matrix[j - 1][i - 1] 
-      }
-    
+  deleteCategory(id: string): boolean {
+    const index = this.categories.findIndex(cat => cat.id === id)
+    if (index === -1) return false
+
+    this.categories.splice(index, 1)
+    return true
   }
-  pr
-    const hashBuffer
-    return hashArray.map(b =>
 
+  // Filtering and Search
+  filterPhotos(query: string, categoryId?: string): LocalPhoto[] {
+    let filtered = [...this.photos]
 
-
-  filterPhotos(query: string, catego
-
-   
-
-        (photo.folder && photo.folder.toLowerCase().includes(lowerQuer
+    if (query.trim()) {
+      const lowerQuery = query.toLowerCase()
+      filtered = filtered.filter(photo =>
+        photo.name.toLowerCase().includes(lowerQuery) ||
+        photo.folder.toLowerCase().includes(lowerQuery)
+      )
     }
-    // Filter by c
-      const category = this
-     
-    
+
+    if (categoryId) {
+      const category = this.categories.find(cat => cat.id === categoryId)
+      if (category) {
+        filtered = filtered.filter(photo =>
+          category.patterns.some(pattern =>
+            photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
+            photo.folder.toLowerCase().includes(pattern.toLowerCase())
           )
-      }
-
-
-  // Utility Methods
-    return `local_${Date.now()}_${Math.random().toString(36).subs
-
-
-    let unitIndex = 0
-    while (size >= 1024 && unitIn
-   
-
-  }
-  // Check if File System Access API is supported
-    return 'showDirectoryPicker' i
-
-  cleanup(): void {
-    this.catego
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      } catch (error) {
-        console.warn('Hash calculation failed:', error)
-
-    }
-
-    // Dimension comparison
-
-      const widthDiff = Math.abs(photo1.dimensions.width - photo2.dimensions.width)
-      const heightDiff = Math.abs(photo1.dimensions.height - photo2.dimensions.height)
-      
-      if (widthDiff === 0 && heightDiff === 0) {
-        score += 20
-        reasons.push('Same dimensions')
-      } else if (widthDiff < 10 && heightDiff < 10) {
-
-        reasons.push('Similar dimensions')
-
-    }
-
-    return { score: Math.min(100, score), reasons }
-
-
-  private async calculateGroupSimilarity(photos: LocalPhoto[], options: DuplicateDetectionOptions): Promise<number> {
-    if (photos.length < 2) return 0
-
-    let totalScore = 0
-    let comparisons = 0
-
-    for (let i = 0; i < photos.length; i++) {
-      for (let j = i + 1; j < photos.length; j++) {
-        const similarity = await this.calculateSimilarity(photos[i], photos[j], options)
-        totalScore += similarity.score
-
+        )
       }
     }
 
-    return comparisons > 0 ? totalScore / comparisons : 0
+    return filtered
   }
 
-  private calculateNameSimilarity(name1: string, name2: string): number {
-    const normalize = (str: string) => str.toLowerCase().replace(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|tif)$/i, '')
-    const n1 = normalize(name1)
+  // Duplicate Detection
+  async findDuplicates(options: DuplicateDetectionOptions): Promise<LocalDuplicateGroup[]> {
+    if (this.photos.length < 2) return []
 
+    const groups: LocalDuplicateGroup[] = []
+    const processed = new Set<string>()
 
-    if (n1 === n2) return 1
+    for (let i = 0; i < this.photos.length; i++) {
+      if (processed.has(this.photos[i].id)) continue
 
-    const longer = n1.length > n2.length ? n1 : n2
-    const shorter = n1.length > n2.length ? n2 : n1
+      const photo1 = this.photos[i]
+      const duplicates = [photo1]
 
-    if (longer.length === 0) return 1
+      for (let j = i + 1; j < this.photos.length; j++) {
+        if (processed.has(this.photos[j].id)) continue
 
-    const distance = this.levenshteinDistance(longer, shorter)
-    return (longer.length - distance) / longer.length
+        const photo2 = this.photos[j]
+        const result = await this.comparePhotos(photo1, photo2, options)
+
+        if (result.isDuplicate) {
+          duplicates.push(photo2)
+          processed.add(photo2.id)
+        }
+      }
+
+      if (duplicates.length > 1) {
+        const group: LocalDuplicateGroup = {
+          id: `group_${Date.now()}_${i}`,
+          photos: duplicates,
+          similarity: options.similarityThreshold,
+          reason: this.getDuplicateReasons(duplicates[0], duplicates[1], options)
+        }
+        groups.push(group)
+      }
+
+      processed.add(photo1.id)
+    }
+
+    this.duplicateGroups = groups
+    return groups
+  }
+
+  private async comparePhotos(
+    photo1: LocalPhoto, 
+    photo2: LocalPhoto, 
+    options: DuplicateDetectionOptions
+  ): Promise<{ isDuplicate: boolean; similarity: number }> {
+    let matchPoints = 0
+    let totalPoints = 0
+
+    // File size check
+    if (options.checkFileSize) {
+      totalPoints += 1
+      const sizeDiff = Math.abs(photo1.size - photo2.size) / Math.max(photo1.size, photo2.size)
+      if (sizeDiff < 0.05) { // 5% tolerance
+        matchPoints += 1
+      }
+    }
+
+    // Filename similarity
+    if (options.checkFilename) {
+      totalPoints += 1
+      const similarity = this.calculateStringSimilarity(photo1.name, photo2.name)
+      if (similarity > options.similarityThreshold / 100) {
+        matchPoints += similarity
+      }
+    }
+
+    // Hash check (simplified - using basic properties)
+    if (options.checkHash) {
+      totalPoints += 1
+      if (photo1.size === photo2.size && 
+          photo1.dimensions?.width === photo2.dimensions?.width &&
+          photo1.dimensions?.height === photo2.dimensions?.height) {
+        matchPoints += 1
+      }
+    }
+
+    const overallSimilarity = totalPoints > 0 ? (matchPoints / totalPoints) * 100 : 0
+    return {
+      isDuplicate: overallSimilarity >= options.similarityThreshold,
+      similarity: overallSimilarity
+    }
+  }
+
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    const longer = str1.length > str2.length ? str1 : str2
+    const shorter = str1.length > str2.length ? str2 : str1
+    
+    if (longer.length === 0) return 1.0
+    
+    const editDistance = this.levenshteinDistance(longer, shorter)
+    return (longer.length - editDistance) / longer.length
   }
 
   private levenshteinDistance(str1: string, str2: string): number {
@@ -417,90 +345,69 @@ class LocalPhotoService {
 
     for (let i = 0; i <= str1.length; i++) matrix[0][i] = i
     for (let j = 0; j <= str2.length; j++) matrix[j][0] = j
-    
+
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
         const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1
         matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,
-          matrix[j - 1][i] + 1,
-          matrix[j - 1][i - 1] + indicator
-
+          matrix[j][i - 1] + 1, // deletion
+          matrix[j - 1][i] + 1, // insertion
+          matrix[j - 1][i - 1] + indicator // substitution
+        )
       }
+    }
 
-    
     return matrix[str2.length][str1.length]
   }
 
-  private async calculateFileHash(file: File): Promise<string> {
+  private getDuplicateReasons(photo1: LocalPhoto, photo2: LocalPhoto, options: DuplicateDetectionOptions): string[] {
+    const reasons: string[] = []
 
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
-
-  getDuplicateGroups(): LocalDuplicateGroup[] {
-    return [...this.duplicateGroups]
-
-
-
-  filterPhotos(query: string, categoryId?: string): LocalPhoto[] {
-    let filtered = [...this.photos]
-
-    // Filter by search query
-    if (query.trim()) {
-      const lowerQuery = query.toLowerCase()
-      filtered = filtered.filter(photo =>
-        photo.name.toLowerCase().includes(lowerQuery) ||
-        (photo.folder && photo.folder.toLowerCase().includes(lowerQuery))
-      )
+    if (options.checkFileSize && Math.abs(photo1.size - photo2.size) / Math.max(photo1.size, photo2.size) < 0.05) {
+      reasons.push('Similar file size')
     }
 
-    // Filter by category
+    if (options.checkFilename && this.calculateStringSimilarity(photo1.name, photo2.name) > 0.8) {
+      reasons.push('Similar filename')
+    }
 
-      const category = this.categories.find(cat => cat.id === categoryId)
+    if (options.checkHash && photo1.size === photo2.size) {
+      reasons.push('Identical properties')
+    }
 
-        filtered = filtered.filter(photo =>
-          category.patterns.some(pattern =>
-            photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
-            (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
-          )
-
-      }
-
-
-
+    return reasons
   }
 
   // Utility Methods
-  private generateId(): string {
-    return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  }
-
   formatFileSize(bytes: number): string {
-    const units = ['B', 'KB', 'MB', 'GB']
-
-    let unitIndex = 0
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024
-      unitIndex++
-    }
-
-    return `${size.toFixed(1)} ${units[unitIndex]}`
+    if (bytes === 0) return '0 Bytes'
+    
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // Check if File System Access API is supported
-
+  static isFileSystemAccessSupported(): boolean {
     return 'showDirectoryPicker' in window
+  }
 
-
-  // Cleanup method
+  // Cleanup
   cleanup(): void {
-
+    // Clean up all object URLs
+    this.photos.forEach(photo => {
+      URL.revokeObjectURL(photo.url)
+      if (photo.thumbnailUrl) {
+        URL.revokeObjectURL(photo.thumbnailUrl)
+      }
+    })
+    
+    this.photos = []
     this.categories = []
-
-
+    this.duplicateGroups = []
+  }
 }
 
+export { LocalPhotoService }
 export const localPhotoService = new LocalPhotoService()
