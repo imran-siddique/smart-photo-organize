@@ -1,24 +1,39 @@
-# OneDrive Photo Sorter - Cloud-Native Architecture PRD
+# Photo Sorter - Unified Storage Architecture PRD
 
 ## Core Purpose & Success
-- **Mission Statement**: Intelligent cloud-native photo organization system with Microsoft OneDrive integration, featuring parallel processing, advanced duplicate detection, and batch operations.
-- **Success Indicators**: Fast photo loading from OneDrive, accurate duplicate detection, seamless batch processing, and intuitive cloud file management.
-- **Experience Qualities**: Efficient, modern, enterprise-grade
+- **Mission Statement**: Intelligent photo organization system with dual storage support - local folder access (default) and Microsoft OneDrive integration, featuring advanced duplicate detection, batch operations, and smart categorization.
+- **Success Indicators**: Fast photo processing from local or cloud sources, accurate duplicate detection, seamless batch operations, and intuitive file management across both local and cloud storage.
+- **Experience Qualities**: Efficient, privacy-focused, versatile
 
 ## Project Classification & Approach
-- **Complexity Level**: Complex Application (cloud integration with advanced parallel processing)
-- **Primary User Activity**: Organizing and managing photos directly in OneDrive with real-time sync
+- **Complexity Level**: Complex Application (dual storage architecture with advanced processing)
+- **Primary User Activity**: Organizing and managing photos from local computer (default) or OneDrive with flexible provider switching
 
 ## Architecture Overview
-- **Frontend**: React application with TypeScript and Microsoft Graph API integration
-- **Cloud Backend**: Microsoft OneDrive via Graph API for file storage and management
-- **Authentication**: Microsoft OAuth 2.0 with token refresh handling
-- **Processing**: Client-side parallel processing with batch operations
-- **Storage**: OneDrive cloud storage with local KV caching for categories and settings
+- **Frontend**: React application with TypeScript and unified storage abstraction
+- **Local Storage**: Browser File System Access API for folder access, fallback to file selection
+- **Cloud Backend**: Microsoft OneDrive via Graph API for cloud file storage
+- **Authentication**: Microsoft OAuth 2.0 for OneDrive (optional)
+- **Processing**: Client-side parallel processing with provider-agnostic batch operations
+- **Data Persistence**: KV storage for categories, settings, and metadata per provider
 
 ## Essential Features
 
-### Cloud Integration Features
+### Storage Provider Features
+- **Local Folder Access (Default)**: Direct folder access using File System Access API
+- **File Selection Fallback**: Traditional file input for browsers without folder API support
+- **OneDrive Integration**: Optional cloud storage with Microsoft authentication
+- **Provider Switching**: Seamless transition between local and cloud storage
+- **Unified Interface**: Consistent UI/UX regardless of storage provider
+
+### Local Processing Features (Privacy-First)
+- Direct file access without uploads to external servers
+- Local duplicate detection using advanced algorithms
+- In-browser image analysis and categorization
+- Fast processing without network dependencies
+- Privacy-focused - files never leave the user's device
+
+### Cloud Integration Features (OneDrive)
 - Microsoft OneDrive authentication with OAuth 2.0
 - Real-time photo loading from OneDrive with parallel processing
 - Batch file operations (move, delete, organize) with progress tracking
@@ -33,13 +48,21 @@
 - Visual photo comparison with side-by-side analysis
 
 ### User Experience Features
-- Drag-and-drop category management with color coding
+- Provider selection screen with clear feature comparison
+- Category management with color coding and pattern matching
 - Bulk photo selection with advanced filtering and sorting
 - Real-time progress indicators for all operations
 - Search and filter capabilities across photo collections
 - Responsive photo grid with thumbnail optimization
 
 ## API Integration Design
+**Local Storage:**
+- File System Access API for folder access
+- Web Crypto API for secure file hashing
+- Canvas API for image dimension analysis
+- Object URLs for efficient image display
+
+**OneDrive Integration:**
 - `Microsoft Graph API /me/drive/items` - File and folder operations
 - `Microsoft Graph API /$batch` - Batch request processing
 - `Microsoft Graph API /me/drive/root/search` - Photo search functionality

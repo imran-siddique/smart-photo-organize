@@ -1,5 +1,5 @@
 import React from 'react'
-import { MicrosoftOutlookLogo, Image, Trash2, Eye, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, SignOut, CloudArrowDown, Funnel, SortAscending, Check, X } from '@phosphor-icons/react'
+import { MicrosoftOutlookLogo, Image, Trash2, Eye, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, SignOut, CloudArrowDown, Funnel, SortAscending, Check, X, Folder, Upload } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,36 +13,38 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
-import { useOneDrive } from '@/hooks/useOneDrive'
-import { oneDriveService, OneDriveItem, CategoryPattern } from '@/services/onedrive'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePhotoStorage, UnifiedPhoto, UnifiedCategory } from '@/hooks/usePhotoStorage'
 import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
   const {
-    user,
-    items,
-    filteredItems,
+    currentProvider,
+    switchProvider,
+    isFileSystemAccessSupported,
+    isOneDriveAuthenticated,
+    oneDriveUser,
+    authenticateOneDrive,
+    handleOneDriveCallback,
+    logoutOneDrive,
+    photos,
+    filteredPhotos,
     categories,
     duplicateGroups,
-    isAuthenticated,
     isLoading,
-    isLoadingItems,
+    isLoadingPhotos,
     isDuplicateDetectionRunning,
     error,
     progress,
-    authenticate,
-    logout,
-    loadItems,
+    loadPhotos,
     createCategory,
     updateCategory,
     deleteCategory,
-    moveItemsToCategory,
-    deleteItems,
+    deletePhotos,
     runDuplicateDetection,
-    processDuplicateGroups,
-    filterItems,
-    handleAuthCallback
-  } = useOneDrive()
+    filterPhotos,
+    formatFileSize
+  } = usePhotoStorage()
 
   const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [bulkActionCategory, setBulkActionCategory] = React.useState<string>('')
@@ -50,12 +52,13 @@ function PhotoSorter() {
   const [newCategoryName, setNewCategoryName] = React.useState('')
   const [newCategoryPatterns, setNewCategoryPatterns] = React.useState('')
   const [newCategoryColor, setNewCategoryColor] = React.useState('#3b82f6')
-  const [editingCategory, setEditingCategory] = React.useState<CategoryPattern | null>(null)
+  const [editingCategory, setEditingCategory] = React.useState<UnifiedCategory | null>(null)
   const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('')
   const [sortBy, setSortBy] = React.useState<'name' | 'date' | 'size'>('name')
   const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc')
+  const [showProviderSelection, setShowProviderSelection] = React.useState(!currentProvider || currentProvider === 'local')
 
   // Duplicate detection settings
   const [duplicateDetectionOpen, setDuplicateDetectionOpen] = React.useState(false)
@@ -66,15 +69,17 @@ function PhotoSorter() {
     checkHash: true
   })
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
-  const [compareItems, setCompareItems] = React.useState<OneDriveItem[]>([])
+  const [compareItems, setCompareItems] = React.useState<UnifiedPhoto[]>([])
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
 
-  // Handle auth callback
+  // Handle auth callback for OneDrive
   React.useEffect(() => {
+    if (currentProvider !== 'onedrive') return
+    
     const hash = window.location.hash
     
     if (hash && hash.includes('access_token')) {
-      handleAuthCallback(hash).then(success => {
+      handleOneDriveCallback(hash).then(success => {
         if (success) {
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname)
@@ -89,15 +94,15 @@ function PhotoSorter() {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [handleAuthCallback])
+  }, [handleOneDriveCallback, currentProvider])
 
-  // Filter and sort items
+  // Filter and sort photos
   React.useEffect(() => {
-    filterItems(searchQuery, selectedCategoryFilter)
-  }, [searchQuery, selectedCategoryFilter, items])
+    filterPhotos(searchQuery, selectedCategoryFilter)
+  }, [searchQuery, selectedCategoryFilter, photos])
 
-  const sortedItems = React.useMemo(() => {
-    const sorted = [...filteredItems]
+  const sortedPhotos = React.useMemo(() => {
+    const sorted = [...filteredPhotos]
     
     sorted.sort((a, b) => {
       let comparison = 0
@@ -107,7 +112,13 @@ function PhotoSorter() {
           comparison = a.name.localeCompare(b.name)
           break
         case 'date':
-          comparison = new Date(a.lastModifiedDateTime).getTime() - new Date(b.lastModifiedDateTime).getTime()
+          const aTime = typeof a.lastModified === 'string' 
+            ? new Date(a.lastModified).getTime()
+            : a.lastModified
+          const bTime = typeof b.lastModified === 'string'
+            ? new Date(b.lastModified).getTime()
+            : b.lastModified
+          comparison = aTime - bTime
           break
         case 'size':
           comparison = a.size - b.size
@@ -118,7 +129,7 @@ function PhotoSorter() {
     })
     
     return sorted
-  }, [filteredItems, sortBy, sortOrder])
+  }, [filteredPhotos, sortBy, sortOrder])
 
   const toggleItemSelection = (itemId: string) => {
     setSelectedItems(current => 
@@ -129,7 +140,7 @@ function PhotoSorter() {
   }
 
   const selectAllItems = () => {
-    setSelectedItems(sortedItems.map(item => item.id))
+    setSelectedItems(sortedPhotos.map(photo => photo.id))
   }
 
   const deselectAllItems = () => {
@@ -153,15 +164,6 @@ function PhotoSorter() {
       sortOrder: categories.length + 1
     })
     
-    // Move selected items if any
-    if (selectedItems.length > 0) {
-      const newCategory = categories[categories.length - 1]
-      if (newCategory) {
-        await moveItemsToCategory(selectedItems, newCategory.id)
-        setSelectedItems([])
-      }
-    }
-    
     // Reset form
     setNewCategoryName('')
     setNewCategoryPatterns('')
@@ -169,24 +171,13 @@ function PhotoSorter() {
     setIsCreateCategoryOpen(false)
   }
 
-  const moveSelectedItems = async (categoryName: string) => {
-    if (!categoryName || selectedItems.length === 0) return
-    
-    const category = categories.find(c => c.name === categoryName)
-    if (!category) return
-
-    await moveItemsToCategory(selectedItems, category.id)
-    setSelectedItems([])
-    setBulkActionCategory('')
-  }
-
   const deleteSelectedItems = async () => {
     if (selectedItems.length === 0) return
-    await deleteItems(selectedItems)
+    await deletePhotos(selectedItems)
     setSelectedItems([])
   }
 
-  const openEditCategory = (category: CategoryPattern) => {
+  const openEditCategory = (category: UnifiedCategory) => {
     setEditingCategory({ ...category })
     setIsEditCategoryOpen(true)
   }
@@ -217,59 +208,188 @@ function PhotoSorter() {
     )
   }
 
-  const processSelectedDuplicateGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
-    if (selectedDuplicateGroups.length === 0) return
-    
-    await processDuplicateGroups(selectedDuplicateGroups, action)
-    setSelectedDuplicateGroups([])
-  }
-
-  const compareItemsInGroup = (items: OneDriveItem[]) => {
-    setCompareItems(items)
+  const comparePhotosInGroup = (photos: UnifiedPhoto[]) => {
+    setCompareItems(photos)
     setIsCompareOpen(true)
   }
 
-  const keepItemInGroup = async (groupItems: OneDriveItem[], keepItem: OneDriveItem) => {
-    const itemsToDelete = groupItems.filter(item => item.id !== keepItem.id).map(item => item.id)
-    if (itemsToDelete.length > 0) {
-      await deleteItems(itemsToDelete)
+  const keepPhotoInGroup = async (groupPhotos: UnifiedPhoto[], keepPhoto: UnifiedPhoto) => {
+    const photosToDelete = groupPhotos.filter(photo => photo.id !== keepPhoto.id).map(photo => photo.id)
+    if (photosToDelete.length > 0) {
+      await deletePhotos(photosToDelete)
       setIsCompareOpen(false)
     }
   }
 
-  // Authentication screen
-  if (!isAuthenticated && !isLoading) {
+  // File input handler for local photos
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files && files.length > 0) {
+      loadPhotos(false, files)
+    }
+  }
+
+  // Provider selection screen
+  if (showProviderSelection) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Toaster richColors position="top-right" />
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl">Photo Sorter</CardTitle>
+            <p className="text-muted-foreground">
+              Choose how you'd like to organize your photos
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="local" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="local" className="flex items-center gap-2">
+                  <Folder className="w-4 h-4" />
+                  Local Folder
+                </TabsTrigger>
+                <TabsTrigger value="onedrive" className="flex items-center gap-2">
+                  <MicrosoftOutlookLogo className="w-4 h-4" />
+                  OneDrive
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="local" className="space-y-4 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Folder className="w-5 h-5" />
+                      Local Folder Access
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Organize photos directly from your computer
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Features:</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Fast local processing</li>
+                        <li>• No internet connection required</li>
+                        <li>• Privacy-focused (files stay on your device)</li>
+                        <li>• Advanced duplicate detection</li>
+                        <li>• Custom categorization patterns</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {isFileSystemAccessSupported ? (
+                        <Button 
+                          onClick={() => {
+                            switchProvider('local')
+                            setShowProviderSelection(false)
+                          }} 
+                          className="flex-1"
+                          size="lg"
+                        >
+                          <Folder className="w-4 h-4 mr-2" />
+                          Choose Folder
+                        </Button>
+                      ) : (
+                        <div className="flex-1 space-y-2">
+                          <Button asChild className="w-full" size="lg">
+                            <label>
+                              <Upload className="w-4 h-4 mr-2" />
+                              Select Photos
+                              <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleFileInputChange}
+                                className="hidden"
+                              />
+                            </label>
+                          </Button>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Folder access not supported in this browser
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="onedrive" className="space-y-4 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MicrosoftOutlookLogo className="w-5 h-5" />
+                      Microsoft OneDrive
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Access and organize photos from your OneDrive account
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Features:</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Access photos from anywhere</li>
+                        <li>• Parallel cloud processing</li>
+                        <li>• Automatic sync with OneDrive</li>
+                        <li>• Batch operations for large collections</li>
+                        <li>• Cross-device accessibility</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h3 className="font-medium text-sm">Authentication Note:</h3>
+                      <p className="text-xs text-muted-foreground">
+                        This app uses Microsoft's sample application credentials. For production use, you may need to register your own Microsoft app.
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => {
+                        switchProvider('onedrive')
+                        setShowProviderSelection(false)
+                      }}
+                      className="w-full"
+                      size="lg"
+                    >
+                      <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
+                      Connect to OneDrive
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // OneDrive authentication screen
+  if (currentProvider === 'onedrive' && !isOneDriveAuthenticated && !isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Toaster richColors position="top-right" />
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <MicrosoftOutlookLogo className="w-16 h-16 mx-auto mb-4 text-blue-500" />
-            <CardTitle className="text-2xl">OneDrive Photo Sorter</CardTitle>
+            <CardTitle className="text-2xl">Connect to OneDrive</CardTitle>
             <p className="text-muted-foreground">
-              Connect to your OneDrive to organize and manage your photos with advanced duplicate detection and batch processing.
+              Sign in to access your OneDrive photos
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="font-medium">Features:</h3>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Parallel processing for fast photo loading</li>
-                <li>• Advanced duplicate detection algorithms</li>
-                <li>• Batch operations for efficient management</li>
-                <li>• Smart categorization with custom patterns</li>
-                <li>• Visual comparison tools</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm">Authentication Note:</h3>
-              <p className="text-xs text-muted-foreground">
-                This app uses Microsoft's sample application credentials. For production use, you may need to register your own Microsoft app and configure custom credentials.
-              </p>
-            </div>
-            <Button onClick={authenticate} className="w-full" size="lg">
+            <Button onClick={authenticateOneDrive} className="w-full" size="lg">
               <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
-              Connect to OneDrive
+              Sign In with Microsoft
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowProviderSelection(true)}
+              className="w-full"
+            >
+              Back to Provider Selection
             </Button>
             {error && (
               <Alert variant="destructive">
@@ -306,21 +426,31 @@ function PhotoSorter() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">OneDrive Photo Sorter</h1>
+            <h1 className="text-3xl font-bold text-foreground">
+              {currentProvider === 'local' ? 'Local Photo Sorter' : 'OneDrive Photo Sorter'}
+            </h1>
             <p className="text-muted-foreground">
-              Organize your photos with parallel processing and batch operations
+              {currentProvider === 'local' 
+                ? 'Organize photos from your local computer'
+                : 'Organize your OneDrive photos with parallel processing and batch operations'
+              }
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {user && (
+            {currentProvider === 'onedrive' && oneDriveUser && (
               <div className="text-sm text-muted-foreground">
-                Welcome, {user.displayName}
+                Welcome, {oneDriveUser.displayName}
               </div>
             )}
-            <Button variant="outline" onClick={logout} size="sm">
-              <SignOut className="w-4 h-4 mr-2" />
-              Logout
+            <Button variant="outline" onClick={() => setShowProviderSelection(true)} size="sm">
+              Switch Provider
             </Button>
+            {currentProvider === 'onedrive' && (
+              <Button variant="outline" onClick={logoutOneDrive} size="sm">
+                <SignOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            )}
           </div>
         </div>
 
@@ -608,52 +738,92 @@ function PhotoSorter() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CloudArrowDown className="w-5 h-5" />
-              OneDrive Photos
+              {currentProvider === 'local' ? <Folder className="w-5 h-5" /> : <CloudArrowDown className="w-5 h-5" />}
+              {currentProvider === 'local' ? 'Local Photos' : 'OneDrive Photos'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground">
-                  {items.length > 0 
-                    ? `${items.length} photos loaded from your OneDrive`
-                    : 'Load photos from your OneDrive account'
+                  {photos.length > 0 
+                    ? `${photos.length} photos loaded ${currentProvider === 'local' ? 'from your computer' : 'from your OneDrive'}`
+                    : `Load photos ${currentProvider === 'local' ? 'from your computer' : 'from your OneDrive account'}`
                   }
                 </p>
-                {filteredItems.length !== items.length && (
+                {filteredPhotos.length !== photos.length && (
                   <p className="text-sm text-muted-foreground">
-                    Showing {filteredItems.length} of {items.length} photos
+                    Showing {filteredPhotos.length} of {photos.length} photos
                   </p>
                 )}
               </div>
-              <Button 
-                onClick={() => loadItems(true)} 
-                disabled={isLoadingItems}
-                variant="outline"
-              >
-                {isLoadingItems ? (
+              <div className="flex items-center gap-2">
+                {currentProvider === 'local' && (
                   <>
-                    <CloudArrowDown className="w-4 h-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <CloudArrowDown className="w-4 h-4 mr-2" />
-                    {items.length > 0 ? 'Refresh' : 'Load Photos'}
+                    {isFileSystemAccessSupported && (
+                      <Button 
+                        onClick={() => loadPhotos(true)} 
+                        disabled={isLoadingPhotos}
+                        variant="outline"
+                      >
+                        {isLoadingPhotos ? (
+                          <>
+                            <Folder className="w-4 h-4 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <Folder className="w-4 h-4 mr-2" />
+                            {photos.length > 0 ? 'Load More' : 'Choose Folder'}
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button asChild variant="outline">
+                      <label>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Add Photos
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </Button>
                   </>
                 )}
-              </Button>
+                {currentProvider === 'onedrive' && (
+                  <Button 
+                    onClick={() => loadPhotos(true)} 
+                    disabled={isLoadingPhotos}
+                    variant="outline"
+                  >
+                    {isLoadingPhotos ? (
+                      <>
+                        <CloudArrowDown className="w-4 h-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <CloudArrowDown className="w-4 h-4 mr-2" />
+                        {photos.length > 0 ? 'Refresh' : 'Load Photos'}
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Photos Grid */}
-        {sortedItems.length > 0 && (
+        {sortedPhotos.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Photos ({sortedItems.length})</CardTitle>
+                <CardTitle>Photos ({sortedPhotos.length})</CardTitle>
                 
                 {/* Bulk Actions Controls */}
                 <div className="flex items-center gap-4">
@@ -663,46 +833,7 @@ function PhotoSorter() {
                         {selectedItems.length} selected
                       </Badge>
                       
-                      <div className="flex items-center gap-2">
-                        <Select value={bulkActionCategory} onValueChange={setBulkActionCategory}>
-                          <SelectTrigger className="w-40">
-                            <SelectValue placeholder="Move to..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.name}>
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: category.color }}
-                                  />
-                                  {category.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                            <SelectItem value="CREATE_NEW">
-                              <div className="flex items-center gap-2">
-                                <Plus className="w-4 h-4" />
-                                Create New Category...
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <Button 
-                          size="sm" 
-                          onClick={() => {
-                            if (bulkActionCategory === 'CREATE_NEW') {
-                              setIsCreateCategoryOpen(true)
-                            } else {
-                              moveSelectedItems(bulkActionCategory)
-                            }
-                          }}
-                          disabled={!bulkActionCategory}
-                        >
-                          {bulkActionCategory === 'CREATE_NEW' ? 'Create & Move' : 'Move'}
-                        </Button>
-                        
+                      <div className="flex items-center gap-2">                        
                         <Button 
                           size="sm" 
                           variant="destructive"
@@ -728,10 +859,10 @@ function PhotoSorter() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={selectedItems.length === sortedItems.length ? deselectAllItems : selectAllItems}
+                      onClick={selectedItems.length === sortedPhotos.length ? deselectAllItems : selectAllItems}
                     >
                       <Check className="w-4 h-4 mr-1" />
-                      {selectedItems.length === sortedItems.length ? 'Deselect All' : 'Select All'}
+                      {selectedItems.length === sortedPhotos.length ? 'Deselect All' : 'Select All'}
                     </Button>
                   </div>
                 </div>
@@ -739,28 +870,28 @@ function PhotoSorter() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {sortedItems.map((item) => (
-                  <div key={item.id} className="relative group">
+                {sortedPhotos.map((photo) => (
+                  <div key={photo.id} className="relative group">
                     {/* Selection Checkbox */}
                     <div className="absolute top-2 right-2 z-10">
                       <Checkbox
-                        checked={selectedItems.includes(item.id)}
-                        onCheckedChange={() => toggleItemSelection(item.id)}
+                        checked={selectedItems.includes(photo.id)}
+                        onCheckedChange={() => toggleItemSelection(photo.id)}
                         className="bg-white/80 backdrop-blur-sm border-white"
                       />
                     </div>
                     
                     <div 
                       className={`aspect-square rounded-lg overflow-hidden bg-muted transition-all duration-200 ${
-                        selectedItems.includes(item.id) 
+                        selectedItems.includes(photo.id) 
                           ? 'ring-2 ring-primary ring-offset-2' 
                           : ''
                       }`}
-                      onClick={() => toggleItemSelection(item.id)}
+                      onClick={() => toggleItemSelection(photo.id)}
                     >
                       <img
-                        src={oneDriveService.getThumbnailUrl(item) || `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/thumbnails/0/medium/content`}
-                        alt={item.name}
+                        src={photo.thumbnailUrl || photo.url}
+                        alt={photo.name}
                         className="w-full h-full object-cover cursor-pointer"
                         onError={(e) => {
                           // Fallback to a placeholder if thumbnail fails
@@ -788,21 +919,25 @@ function PhotoSorter() {
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle>{item.name}</DialogTitle>
+                            <DialogTitle>{photo.name}</DialogTitle>
                           </DialogHeader>
                           <img 
-                            src={`https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`}
-                            alt={item.name} 
+                            src={photo.url}
+                            alt={photo.name} 
                             className="w-full h-auto rounded-lg" 
                           />
                           <div className="space-y-2">
-                            <p><strong>Size:</strong> {oneDriveService.formatFileSize(item.size)}</p>
-                            <p><strong>Modified:</strong> {new Date(item.lastModifiedDateTime).toLocaleDateString()}</p>
-                            {item.photo?.takenDateTime && (
-                              <p><strong>Taken:</strong> {new Date(item.photo.takenDateTime).toLocaleDateString()}</p>
+                            <p><strong>Size:</strong> {formatFileSize(photo.size)}</p>
+                            <p><strong>Modified:</strong> {
+                              typeof photo.lastModified === 'string' 
+                                ? new Date(photo.lastModified).toLocaleDateString()
+                                : new Date(photo.lastModified).toLocaleDateString()
+                            }</p>
+                            {photo.dimensions && (
+                              <p><strong>Dimensions:</strong> {photo.dimensions.width} × {photo.dimensions.height}</p>
                             )}
-                            {item.image && (
-                              <p><strong>Dimensions:</strong> {item.image.width} × {item.image.height}</p>
+                            {photo.folder && (
+                              <p><strong>Folder:</strong> {photo.folder}</p>
                             )}
                           </div>
                         </DialogContent>
@@ -810,9 +945,9 @@ function PhotoSorter() {
                     </div>
                     
                     <div className="mt-1">
-                      <p className="text-xs truncate">{item.name}</p>
+                      <p className="text-xs truncate">{photo.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {oneDriveService.formatFileSize(item.size)}
+                        {formatFileSize(photo.size)}
                       </p>
                     </div>
                   </div>
@@ -977,7 +1112,7 @@ function PhotoSorter() {
                             onCheckedChange={() => toggleDuplicateGroupSelection(group.id)}
                           />
                           <h4 className="font-medium">Group</h4>
-                          <Badge variant="outline">{group.items.length} photos</Badge>
+                          <Badge variant="outline">{group.photos.length} photos</Badge>
                           <Badge variant="secondary">
                             {Math.round(group.similarity)}% similar
                           </Badge>
@@ -992,7 +1127,7 @@ function PhotoSorter() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => compareItemsInGroup(group.items)}
+                            onClick={() => comparePhotosInGroup(group.photos)}
                           >
                             <ArrowsLeftRight className="w-4 h-4 mr-1" />
                             Compare
@@ -1001,12 +1136,12 @@ function PhotoSorter() {
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {group.items.map((item) => (
-                          <div key={item.id} className="relative group">
+                        {group.photos.map((photo) => (
+                          <div key={photo.id} className="relative group">
                             <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                               <img
-                                src={oneDriveService.getThumbnailUrl(item) || `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/thumbnails/0/medium/content`}
-                                alt={item.name}
+                                src={photo.thumbnailUrl || photo.url}
+                                alt={photo.name}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -1015,25 +1150,25 @@ function PhotoSorter() {
                               <Button 
                                 size="sm" 
                                 variant="secondary"
-                                onClick={() => keepItemInGroup(group.items, item)}
+                                onClick={() => keepPhotoInGroup(group.photos, photo)}
                               >
                                 <Crown className="w-4 h-4" />
                               </Button>
                               <Button 
                                 size="sm" 
                                 variant="destructive"
-                                onClick={() => deleteItems([item.id])}
+                                onClick={() => deletePhotos([photo.id])}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                             
                             <div className="mt-2 space-y-1">
-                              <p className="text-xs truncate font-medium">{item.name}</p>
+                              <p className="text-xs truncate font-medium">{photo.name}</p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{oneDriveService.formatFileSize(item.size)}</span>
-                                {item.image && (
-                                  <span>{item.image.width}×{item.image.height}</span>
+                                <span>{formatFileSize(photo.size)}</span>
+                                {photo.dimensions && (
+                                  <span>{photo.dimensions.width}×{photo.dimensions.height}</span>
                                 )}
                               </div>
                             </div>
@@ -1058,22 +1193,22 @@ function PhotoSorter() {
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {compareItems.slice(0, 2).map((item, index) => (
-                <div key={item.id} className="space-y-4">
+              {compareItems.slice(0, 2).map((photo, index) => (
+                <div key={photo.id} className="space-y-4">
                   <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                     <img
-                      src={`https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`}
-                      alt={item.name}
+                      src={photo.url}
+                      alt={photo.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium truncate">{item.name}</h4>
+                      <h4 className="font-medium truncate">{photo.name}</h4>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          onClick={() => keepItemInGroup(compareItems, item)}
+                          onClick={() => keepPhotoInGroup(compareItems, photo)}
                         >
                           <Crown className="w-4 h-4 mr-1" />
                           Keep This
@@ -1081,7 +1216,7 @@ function PhotoSorter() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => deleteItems([item.id])}
+                          onClick={() => deletePhotos([photo.id])}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Delete
@@ -1091,22 +1226,25 @@ function PhotoSorter() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Size:</span>
-                        <p>{oneDriveService.formatFileSize(item.size)}</p>
+                        <p>{formatFileSize(photo.size)}</p>
                       </div>
-                      {item.image && (
+                      {photo.dimensions && (
                         <div>
                           <span className="text-muted-foreground">Dimensions:</span>
-                          <p>{item.image.width} × {item.image.height}</p>
+                          <p>{photo.dimensions.width} × {photo.dimensions.height}</p>
                         </div>
                       )}
                       <div>
                         <span className="text-muted-foreground">Modified:</span>
-                        <p>{new Date(item.lastModifiedDateTime).toLocaleDateString()}</p>
+                        <p>{typeof photo.lastModified === 'string' 
+                          ? new Date(photo.lastModified).toLocaleDateString()
+                          : new Date(photo.lastModified).toLocaleDateString()
+                        }</p>
                       </div>
-                      {item.photo?.takenDateTime && (
+                      {photo.folder && (
                         <div>
-                          <span className="text-muted-foreground">Taken:</span>
-                          <p>{new Date(item.photo.takenDateTime).toLocaleDateString()}</p>
+                          <span className="text-muted-foreground">Folder:</span>
+                          <p>{photo.folder}</p>
                         </div>
                       )}
                     </div>
@@ -1118,11 +1256,11 @@ function PhotoSorter() {
         </Dialog>
 
         {/* Actions */}
-        {items.length > 0 && (
+        {photos.length > 0 && (
           <div className="flex justify-center space-x-4">
-            <Button onClick={() => loadItems(true)} variant="outline">
-              <CloudArrowDown className="w-4 h-4 mr-2" />
-              Refresh Photos
+            <Button onClick={() => loadPhotos(true)} variant="outline">
+              {currentProvider === 'local' ? <Folder className="w-4 h-4 mr-2" /> : <CloudArrowDown className="w-4 h-4 mr-2" />}
+              {currentProvider === 'local' ? 'Load More Photos' : 'Refresh Photos'}
             </Button>
             <Button 
               onClick={() => setDuplicateDetectionOpen(true)}
@@ -1136,7 +1274,7 @@ function PhotoSorter() {
         )}
 
         {/* Empty State */}
-        {items.length === 0 && !isLoadingItems && (
+        {photos.length === 0 && !isLoadingPhotos && (
           <Card>
             <CardContent className="py-12">
               <div className="text-center space-y-4">
@@ -1144,13 +1282,40 @@ function PhotoSorter() {
                 <div>
                   <h3 className="text-lg font-medium">No photos loaded</h3>
                   <p className="text-muted-foreground">
-                    Click "Load Photos" to start organizing your OneDrive photos.
+                    {currentProvider === 'local' 
+                      ? 'Choose a folder or select photos to start organizing.'
+                      : 'Click "Load Photos" to start organizing your OneDrive photos.'
+                    }
                   </p>
                 </div>
-                <Button onClick={() => loadItems()}>
-                  <CloudArrowDown className="w-4 h-4 mr-2" />
-                  Load Photos from OneDrive
-                </Button>
+                {currentProvider === 'local' ? (
+                  <div className="flex justify-center gap-2">
+                    {isFileSystemAccessSupported && (
+                      <Button onClick={() => loadPhotos()}>
+                        <Folder className="w-4 h-4 mr-2" />
+                        Choose Folder
+                      </Button>
+                    )}
+                    <Button asChild variant="outline">
+                      <label>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Select Photos
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => loadPhotos()}>
+                    <CloudArrowDown className="w-4 h-4 mr-2" />
+                    Load Photos from OneDrive
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
