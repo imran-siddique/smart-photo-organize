@@ -39,7 +39,7 @@ interface UseOneDriveActions {
   }) => Promise<void>;
   processDuplicateGroups: (groupIds: string[], action: 'keep-first' | 'keep-largest' | 'keep-newest') => Promise<void>;
   filterItems: (query: string, categoryId?: string) => void;
-  handleAuthCallback: (code: string) => Promise<boolean>;
+  handleAuthCallback: (authFragment: string) => Promise<boolean>;
 }
 
 const defaultState: UseOneDriveState = {
@@ -71,7 +71,6 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
         try {
           const user = await oneDriveService.getCurrentUser();
           setState(prev => ({ ...prev, user }));
-          await loadItems();
         } catch (error) {
           console.error('Failed to load user:', error);
           setState(prev => ({ ...prev, error: 'Failed to load user information' }));
@@ -94,7 +93,7 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
 
   const authenticate = async (): Promise<void> => {
     try {
-      const authUrl = await oneDriveService.getAuthUrl();
+      const authUrl = oneDriveService.getAuthUrl();
       window.location.href = authUrl;
     } catch (error) {
       console.error('Authentication failed:', error);
@@ -103,10 +102,10 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
     }
   };
 
-  const handleAuthCallback = async (code: string): Promise<boolean> => {
+  const handleAuthCallback = async (authFragment: string): Promise<boolean> => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
-      const success = await oneDriveService.exchangeCodeForTokens(code);
+      const success = await oneDriveService.exchangeCodeForTokens(authFragment);
       
       if (success) {
         const user = await oneDriveService.getCurrentUser();

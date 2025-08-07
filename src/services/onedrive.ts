@@ -1,9 +1,10 @@
 // OneDrive API Configuration and Types
 
 const ONEDRIVE_CONFIG = {
-  clientId: import.meta.env.VITE_ONEDRIVE_CLIENT_ID || 'your-onedrive-client-id',
-  redirectUri: window.location.origin + '/auth/callback',
-  scope: 'https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read',
+  // Using Microsoft's public client ID for sample applications
+  clientId: '04b07795-8ddb-461a-bbee-02f9e1bf7b46',
+  redirectUri: window.location.origin,
+  scope: 'Files.ReadWrite User.Read offline_access',
   authority: 'https://login.microsoftonline.com/common'
 };
 
@@ -111,37 +112,35 @@ class OneDriveService {
   getAuthUrl(): string {
     const params = new URLSearchParams({
       client_id: ONEDRIVE_CONFIG.clientId,
-      response_type: 'code',
+      response_type: 'token',
       redirect_uri: ONEDRIVE_CONFIG.redirectUri,
       scope: ONEDRIVE_CONFIG.scope,
-      response_mode: 'query'
+      response_mode: 'fragment'
     });
 
     return `${ONEDRIVE_CONFIG.authority}/oauth2/v2.0/authorize?${params.toString()}`;
   }
 
-  async exchangeCodeForTokens(code: string): Promise<boolean> {
+  async exchangeCodeForTokens(authFragment: string): Promise<boolean> {
     try {
-      const response = await fetch(`${ONEDRIVE_CONFIG.authority}/oauth2/v2.0/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: ONEDRIVE_CONFIG.clientId,
-          scope: ONEDRIVE_CONFIG.scope,
-          code: code,
-          redirect_uri: ONEDRIVE_CONFIG.redirectUri,
-          grant_type: 'authorization_code',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Token exchange failed');
+      // Parse the fragment from the redirect URL
+      const params = new URLSearchParams(authFragment.replace('#', ''));
+      const accessToken = params.get('access_token');
+      const expiresIn = params.get('expires_in');
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      
+      if (error) {
+        console.error('OAuth error:', error, errorDescription);
+        throw new Error(errorDescription || error);
       }
 
-      const data = await response.json();
-      this.saveTokensToStorage(data.access_token, data.refresh_token);
+      if (!accessToken) {
+        throw new Error('No access token received');
+      }
+
+      // Store the token (no refresh token in implicit flow)
+      this.saveTokensToStorage(accessToken, '');
       return true;
     } catch (error) {
       console.error('Token exchange error:', error);
@@ -150,33 +149,9 @@ class OneDriveService {
   }
 
   async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) return false;
-
-    try {
-      const response = await fetch(`${ONEDRIVE_CONFIG.authority}/oauth2/v2.0/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: ONEDRIVE_CONFIG.clientId,
-          scope: ONEDRIVE_CONFIG.scope,
-          refresh_token: this.refreshToken,
-          grant_type: 'refresh_token',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Token refresh failed');
-      }
-
-      const data = await response.json();
-      this.saveTokensToStorage(data.access_token, data.refresh_token);
-      return true;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
-    }
+    // Implicit flow doesn't support refresh tokens
+    // User will need to re-authenticate when token expires
+    return false;
   }
 
   isAuthenticated(): boolean {
@@ -209,11 +184,10 @@ class OneDriveService {
       });
 
       if (response.status === 401 && retries > 0) {
-        const refreshed = await this.refreshAccessToken();
-        if (refreshed) {
-          return this.request(endpoint, options, retries - 1);
-        }
-        throw new Error('Authentication failed');
+        // For implicit flow, we can't refresh tokens
+        // User needs to re-authenticate
+        this.logout();
+        throw new Error('Session expired. Please authenticate again.');
       }
 
       if (!response.ok) {

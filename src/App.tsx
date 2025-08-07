@@ -71,18 +71,25 @@ function PhotoSorter() {
 
   // Handle auth callback
   React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
+    const hash = window.location.hash
     
-    if (code) {
-      handleAuthCallback(code).then(success => {
+    if (hash && hash.includes('access_token')) {
+      handleAuthCallback(hash).then(success => {
         if (success) {
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname)
         }
       })
+    } else if (hash && hash.includes('error')) {
+      // Handle OAuth errors
+      const params = new URLSearchParams(hash.replace('#', ''))
+      const error = params.get('error')
+      const errorDescription = params.get('error_description')
+      console.error('OAuth error:', error, errorDescription)
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [])
+  }, [handleAuthCallback])
 
   // Filter and sort items
   React.useEffect(() => {
@@ -253,6 +260,12 @@ function PhotoSorter() {
                 <li>• Smart categorization with custom patterns</li>
                 <li>• Visual comparison tools</li>
               </ul>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm">Authentication Note:</h3>
+              <p className="text-xs text-muted-foreground">
+                This app uses Microsoft's sample application credentials. For production use, you may need to register your own Microsoft app and configure custom credentials.
+              </p>
             </div>
             <Button onClick={authenticate} className="w-full" size="lg">
               <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />

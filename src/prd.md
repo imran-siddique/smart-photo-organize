@@ -96,7 +96,14 @@
 - **Data Persistence**: OneDrive integration with local caching for performance
 
 ### Security & Privacy
-- **Authentication**: Microsoft OAuth 2.0 with secure token storage
+- **Authentication**: Microsoft OAuth 2.0 with secure token storage using implicit flow
 - **Permissions**: Minimal required OneDrive permissions (Files.ReadWrite)
 - **Data Handling**: No server-side storage, direct client-to-OneDrive communication
 - **Privacy**: User data remains in their OneDrive account
+
+## Recent Updates
+- **Authentication Fix**: Resolved AADSTS700016 error by implementing Microsoft's implicit OAuth flow
+- **Client ID**: Using Microsoft's sample application credentials for testing
+- **Token Management**: Simplified token handling with implicit flow (no refresh tokens)
+- **Error Handling**: Enhanced error reporting for authentication failures
+- **Production Note**: For production deployment, register a custom Microsoft App
