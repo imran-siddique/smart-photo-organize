@@ -1,5 +1,5 @@
 import React from 'react'
-import { Folder, Image, Trash2, Upload, Eye, Download, DotsSixVertical, Check, X, FolderOpen, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, ListChecks, TestTube } from '@phosphor-icons/react'
+import { MicrosoftOutlookLogo, Image, Trash2, Eye, Plus, FolderPlus, PencilSimple, MagnifyingGlass, Warning, Lightning, ArrowsLeftRight, Crown, SignOut, CloudArrowDown, Funnel, SortAscending, Check, X } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,30 +13,49 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { apiService, PhotoDto, CategoryDto, API_BASE_URL } from '@/services/api'
+import { useOneDrive } from '@/hooks/useOneDrive'
+import { oneDriveService, OneDriveItem, CategoryPattern } from '@/services/onedrive'
 import { toast, Toaster } from 'sonner'
-import { DuplicateDetectionTester } from '@/components/DuplicateDetectionTester'
 
 function PhotoSorter() {
-  const [photos, setPhotos] = React.useState<PhotoDto[]>([])
-  const [categories, setCategories] = React.useState<CategoryDto[]>([])
-  const [duplicates, setDuplicates] = React.useState<PhotoDto[]>([])
-  const [duplicateGroups, setDuplicateGroups] = React.useState<PhotoDto[][]>([])
-  const [uploadProgress, setUploadProgress] = React.useState(0)
-  const [isAnalyzing, setIsAnalyzing] = React.useState(false)
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [isDetectingDuplicates, setIsDetectingDuplicates] = React.useState(false)
-  const [currentStep, setCurrentStep] = React.useState<'upload' | 'analyze' | 'sort' | 'review'>('sort')
-  const [draggedCategory, setDraggedCategory] = React.useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null)
-  const [selectedPhotos, setSelectedPhotos] = React.useState<number[]>([])
+  const {
+    user,
+    items,
+    filteredItems,
+    categories,
+    duplicateGroups,
+    isAuthenticated,
+    isLoading,
+    isLoadingItems,
+    isDuplicateDetectionRunning,
+    error,
+    progress,
+    authenticate,
+    logout,
+    loadItems,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    moveItemsToCategory,
+    deleteItems,
+    runDuplicateDetection,
+    processDuplicateGroups,
+    filterItems,
+    handleAuthCallback
+  } = useOneDrive()
+
+  const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [bulkActionCategory, setBulkActionCategory] = React.useState<string>('')
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = React.useState(false)
   const [newCategoryName, setNewCategoryName] = React.useState('')
-  const [newCategoryPattern, setNewCategoryPattern] = React.useState('')
-  const [editingCategory, setEditingCategory] = React.useState<{ id: number; name: string; pattern: string } | null>(null)
+  const [newCategoryPatterns, setNewCategoryPatterns] = React.useState('')
+  const [newCategoryColor, setNewCategoryColor] = React.useState('#3b82f6')
+  const [editingCategory, setEditingCategory] = React.useState<CategoryPattern | null>(null)
   const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('')
+  const [sortBy, setSortBy] = React.useState<'name' | 'date' | 'size'>('name')
+  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc')
 
   // Duplicate detection settings
   const [duplicateDetectionOpen, setDuplicateDetectionOpen] = React.useState(false)
@@ -44,470 +63,337 @@ function PhotoSorter() {
     similarityThreshold: 85,
     checkFileSize: true,
     checkFilename: true,
-    checkImageHash: true,
-    checkVisualSimilarity: false
+    checkHash: true
   })
-  const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<number[]>([])
-  const [comparePhotos, setComparePhotos] = React.useState<PhotoDto[]>([])
+  const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
+  const [compareItems, setCompareItems] = React.useState<OneDriveItem[]>([])
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
-  const [showTester, setShowTester] = React.useState(false)
 
-  // Load data on component mount
+  // Handle auth callback
   React.useEffect(() => {
-    loadCategories()
-    loadPhotos()
-    loadDuplicates()
-    loadDuplicateGroups()
+    const urlParams = new URLSearchParams(window.location.search)
+    const code = urlParams.get('code')
+    
+    if (code) {
+      handleAuthCallback(code).then(success => {
+        if (success) {
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }
+      })
+    }
   }, [])
 
-  const loadCategories = async () => {
-    try {
-      const categoriesData = await apiService.getCategories()
-      setCategories(categoriesData)
-      if (categoriesData.length > 0 && currentStep === 'upload') {
-        setCurrentStep('sort')
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error)
-      toast.error('Failed to load categories')
-    }
-  }
+  // Filter and sort items
+  React.useEffect(() => {
+    filterItems(searchQuery, selectedCategoryFilter)
+  }, [searchQuery, selectedCategoryFilter, items])
 
-  const loadPhotos = async () => {
-    try {
-      setIsLoading(true)
-      const photosData = await apiService.getPhotos()
-      setPhotos(photosData)
-    } catch (error) {
-      console.error('Failed to load photos:', error)
-      toast.error('Failed to load photos')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const loadDuplicates = async () => {
-    try {
-      const duplicatesData = await apiService.getDuplicates()
-      setDuplicates(duplicatesData)
-      if (duplicatesData.length > 0) {
-        setCurrentStep('review')
-      }
-    } catch (error) {
-      console.error('Failed to load duplicates:', error)
-    }
-  }
-
-  const loadDuplicateGroups = async () => {
-    try {
-      const duplicateGroupsData = await apiService.getDuplicateGroups()
-      setDuplicateGroups(duplicateGroupsData)
-    } catch (error) {
-      console.error('Failed to load duplicate groups:', error)
-    }
-  }
-
-  // Handle file uploads
-  const handleFileUpload = async (files: FileList) => {
-    setUploadProgress(0)
-    const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'))
+  const sortedItems = React.useMemo(() => {
+    const sorted = [...filteredItems]
     
-    if (fileArray.length === 0) {
-      toast.error('No valid image files selected')
-      return
-    }
-
-    try {
-      if (fileArray.length === 1) {
-        // Single file upload
-        const file = fileArray[0]
-        await apiService.uploadPhoto(file)
-        setUploadProgress(100)
-        toast.success('Photo uploaded successfully')
-      } else {
-        // Multiple file upload
-        const result = await apiService.uploadMultiplePhotos(fileArray)
-        setUploadProgress(100)
-        
-        if (result.errors.length > 0) {
-          result.errors.forEach(error => toast.error(error))
-        }
-        
-        if (result.photos.length > 0) {
-          toast.success(`${result.photos.length} photos uploaded successfully`)
-        }
+    sorted.sort((a, b) => {
+      let comparison = 0
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name)
+          break
+        case 'date':
+          comparison = new Date(a.lastModifiedDateTime).getTime() - new Date(b.lastModifiedDateTime).getTime()
+          break
+        case 'size':
+          comparison = a.size - b.size
+          break
       }
       
-      // Reload data
-      await loadPhotos()
-      await loadDuplicates()
-      await loadDuplicateGroups()
-      await loadCategories() // Refresh photo counts
-      
-    } catch (error) {
-      console.error('Upload failed:', error)
-      toast.error('Upload failed: ' + (error as Error).message)
-    } finally {
-      setUploadProgress(0)
-    }
-  }
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+    
+    return sorted
+  }, [filteredItems, sortBy, sortOrder])
 
-  const removeDuplicate = async (photoId: number) => {
-    try {
-      await apiService.removeDuplicate(photoId)
-      setPhotos((current) => current.filter(p => p.id !== photoId))
-      setDuplicates((current) => current.filter(p => p.id !== photoId))
-      setSelectedPhotos((current) => current.filter(id => id !== photoId))
-      setDuplicateGroups((current) => 
-        current.map(group => group.filter(p => p.id !== photoId)).filter(group => group.length > 0)
-      )
-      toast.success('Duplicate removed')
-    } catch (error) {
-      console.error('Failed to remove duplicate:', error)
-      toast.error('Failed to remove duplicate')
-    }
-  }
-
-  // Enhanced duplicate detection
-  const runDuplicateDetection = async () => {
-    try {
-      setIsDetectingDuplicates(true)
-      const result = await apiService.runDuplicateDetection(detectionSettings)
-      
-      await loadDuplicates()
-      await loadDuplicateGroups()
-      
-      toast.success(`Found ${result.totalFound} duplicates in ${result.groups} groups`)
-      
-      if (result.totalFound > 0) {
-        setCurrentStep('review')
-      }
-    } catch (error) {
-      console.error('Failed to detect duplicates:', error)
-      toast.error('Failed to detect duplicates')
-    } finally {
-      setIsDetectingDuplicates(false)
-      setDuplicateDetectionOpen(false)
-    }
-  }
-
-  const comparePhotosInGroup = (group: PhotoDto[]) => {
-    setComparePhotos(group)
-    setIsCompareOpen(true)
-  }
-
-  const keepPhotoInGroup = async (group: PhotoDto[], keepPhoto: PhotoDto) => {
-    try {
-      const photoIds = group.map(p => p.id)
-      await apiService.removeDuplicateGroup(photoIds, keepPhoto.id)
-      
-      await loadPhotos()
-      await loadDuplicates()
-      await loadDuplicateGroups()
-      
-      toast.success(`Kept "${keepPhoto.name}" and removed ${photoIds.length - 1} duplicates`)
-    } catch (error) {
-      console.error('Failed to process duplicate group:', error)
-      toast.error('Failed to process duplicate group')
-    }
-  }
-
-  const markAsNotDuplicate = async (photoId: number) => {
-    try {
-      await apiService.markAsNotDuplicate(photoId)
-      await loadDuplicates()
-      await loadDuplicateGroups()
-      toast.success('Marked as not duplicate')
-    } catch (error) {
-      console.error('Failed to mark as not duplicate:', error)
-      toast.error('Failed to mark as not duplicate')
-    }
-  }
-
-  const toggleDuplicateGroupSelection = (groupIndex: number) => {
-    setSelectedDuplicateGroups((current) => 
-      current.includes(groupIndex) 
-        ? current.filter(i => i !== groupIndex)
-        : [...current, groupIndex]
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(current => 
+      current.includes(itemId)
+        ? current.filter(id => id !== itemId)
+        : [...current, itemId]
     )
   }
 
-  const processSelectedGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
-    try {
-      for (const groupIndex of selectedDuplicateGroups) {
-        const group = duplicateGroups[groupIndex]
-        if (!group || group.length === 0) continue
-
-        let keepPhoto: PhotoDto
-        switch (action) {
-          case 'keep-first':
-            keepPhoto = group[0]
-            break
-          case 'keep-largest':
-            keepPhoto = group.reduce((largest, current) => 
-              current.size > largest.size ? current : largest
-            )
-            break
-          case 'keep-newest':
-            keepPhoto = group.reduce((newest, current) => 
-              new Date(current.createdAt) > new Date(newest.createdAt) ? current : newest
-            )
-            break
-          default:
-            keepPhoto = group[0]
-        }
-
-        const photoIds = group.map(p => p.id)
-        await apiService.removeDuplicateGroup(photoIds, keepPhoto.id)
-      }
-
-      await loadPhotos()
-      await loadDuplicates()
-      await loadDuplicateGroups()
-      
-      setSelectedDuplicateGroups([])
-      toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups`)
-    } catch (error) {
-      console.error('Failed to process selected groups:', error)
-      toast.error('Failed to process selected groups')
-    }
+  const selectAllItems = () => {
+    setSelectedItems(sortedItems.map(item => item.id))
   }
 
-  // Handle drag and drop for categories
-  const handleCategoryDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    setDraggedCategory(index)
-    e.dataTransfer.effectAllowed = 'move'
+  const deselectAllItems = () => {
+    setSelectedItems([])
   }
 
-  const handleCategoryDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverIndex(index)
-  }
-
-  const handleCategoryDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDragOverIndex(null)
-    }
-  }
-
-  const handleCategoryDrop = async (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
-    e.preventDefault()
+  const createNewCategory = async () => {
+    if (!newCategoryName.trim()) return
     
-    if (draggedCategory === null || draggedCategory === dropIndex) {
-      setDraggedCategory(null)
-      setDragOverIndex(null)
-      return
+    const patterns = newCategoryPatterns
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+    
+    await createCategory({
+      name: newCategoryName.trim(),
+      patterns: patterns.length > 0 ? patterns : [newCategoryName.trim().toLowerCase()],
+      folder: newCategoryName.trim(),
+      color: newCategoryColor,
+      autoSort: true,
+      sortOrder: categories.length + 1
+    })
+    
+    // Move selected items if any
+    if (selectedItems.length > 0) {
+      const newCategory = categories[categories.length - 1]
+      if (newCategory) {
+        await moveItemsToCategory(selectedItems, newCategory.id)
+        setSelectedItems([])
+      }
     }
-
-    try {
-      const newCategories = [...categories]
-      const draggedItem = newCategories[draggedCategory]
-      
-      // Remove dragged item
-      newCategories.splice(draggedCategory, 1)
-      
-      // Insert at new position
-      const actualDropIndex = draggedCategory < dropIndex ? dropIndex - 1 : dropIndex
-      newCategories.splice(actualDropIndex, 0, draggedItem)
-      
-      // Update sort orders
-      const reorderData = newCategories.map((category, index) => ({
-        id: category.id,
-        sortOrder: index + 1
-      }))
-      
-      await apiService.reorderCategories(reorderData)
-      setCategories(newCategories)
-      toast.success('Categories reordered')
-      
-    } catch (error) {
-      console.error('Failed to reorder categories:', error)
-      toast.error('Failed to reorder categories')
-    } finally {
-      setDraggedCategory(null)
-      setDragOverIndex(null)
-    }
+    
+    // Reset form
+    setNewCategoryName('')
+    setNewCategoryPatterns('')
+    setNewCategoryColor('#3b82f6')
+    setIsCreateCategoryOpen(false)
   }
 
-  const handleCategoryDragEnd = () => {
-    setDraggedCategory(null)
-    setDragOverIndex(null)
-  }
-
-  // Bulk selection handlers
-  const togglePhotoSelection = (photoId: number) => {
-    setSelectedPhotos((current) => 
-      current.includes(photoId) 
-        ? current.filter(id => id !== photoId)
-        : [...current, photoId]
-    )
-  }
-
-  const selectAllPhotos = () => {
-    setSelectedPhotos(photos.map(photo => photo.id))
-  }
-
-  const deselectAllPhotos = () => {
-    setSelectedPhotos([])
-  }
-
-  const deleteSelectedPhotos = async () => {
-    try {
-      await apiService.deleteMultiplePhotos(selectedPhotos)
-      await loadPhotos()
-      await loadCategories()
-      setSelectedPhotos([])
-      toast.success(`${selectedPhotos.length} photos deleted`)
-    } catch (error) {
-      console.error('Failed to delete photos:', error)
-      toast.error('Failed to delete photos')
-    }
-  }
-
-  const moveSelectedPhotos = async (categoryName: string) => {
-    if (!categoryName) return
+  const moveSelectedItems = async (categoryName: string) => {
+    if (!categoryName || selectedItems.length === 0) return
     
     const category = categories.find(c => c.name === categoryName)
     if (!category) return
 
-    try {
-      await apiService.updateMultiplePhotosCategory(selectedPhotos, category.id)
-      await loadPhotos()
-      await loadCategories()
-      setSelectedPhotos([])
-      setBulkActionCategory('')
-      toast.success(`${selectedPhotos.length} photos moved to ${categoryName}`)
-    } catch (error) {
-      console.error('Failed to move photos:', error)
-      toast.error('Failed to move photos')
-    }
+    await moveItemsToCategory(selectedItems, category.id)
+    setSelectedItems([])
+    setBulkActionCategory('')
   }
 
-  // Create new category
-  const createNewCategory = async () => {
-    if (!newCategoryName.trim()) return
-    
-    try {
-      const maxSortOrder = Math.max(0, ...categories.map(c => c.sortOrder))
-      
-      const newCategory = await apiService.createCategory({
-        name: newCategoryName.trim(),
-        path: `${newCategoryName.trim()}/`,
-        pattern: newCategoryPattern.trim() || `Custom category: ${newCategoryName.trim()}`,
-        sortOrder: maxSortOrder + 1
-      })
-      
-      setCategories((current) => [...current, newCategory])
-      
-      // Move selected photos to new category
-      if (selectedPhotos.length > 0) {
-        await apiService.updateMultiplePhotosCategory(selectedPhotos, newCategory.id)
-        await loadPhotos()
-        setSelectedPhotos([])
-        toast.success(`Category created and ${selectedPhotos.length} photos moved`)
-      } else {
-        toast.success('Category created successfully')
-      }
-      
-      // Reset form
-      setNewCategoryName('')
-      setNewCategoryPattern('')
-      setIsCreateCategoryOpen(false)
-      
-    } catch (error) {
-      console.error('Failed to create category:', error)
-      toast.error('Failed to create category')
-    }
+  const deleteSelectedItems = async () => {
+    if (selectedItems.length === 0) return
+    await deleteItems(selectedItems)
+    setSelectedItems([])
   }
 
-  const deleteCategory = async (categoryId: number) => {
-    try {
-      await apiService.deleteCategory(categoryId)
-      await loadCategories()
-      await loadPhotos()
-      toast.success('Category deleted')
-    } catch (error) {
-      console.error('Failed to delete category:', error)
-      toast.error('Failed to delete category')
-    }
-  }
-
-  // Edit category functionality
-  const openEditCategory = (categoryId: number) => {
-    const category = categories.find(c => c.id === categoryId)
-    if (!category) return
-    
-    setEditingCategory({
-      id: category.id,
-      name: category.name,
-      pattern: category.pattern
-    })
+  const openEditCategory = (category: CategoryPattern) => {
+    setEditingCategory({ ...category })
     setIsEditCategoryOpen(true)
   }
 
   const saveEditCategory = async () => {
-    if (!editingCategory || !editingCategory.name.trim()) return
+    if (!editingCategory) return
     
-    try {
-      const category = categories.find(c => c.id === editingCategory.id)
-      if (!category) return
-      
-      const updatedCategory = await apiService.updateCategory(editingCategory.id, {
-        name: editingCategory.name.trim(),
-        path: `${editingCategory.name.trim()}/`,
-        pattern: editingCategory.pattern.trim() || `Custom category: ${editingCategory.name.trim()}`,
-        sortOrder: category.sortOrder
-      })
-      
-      setCategories((current) => 
-        current.map(cat => 
-          cat.id === editingCategory.id ? updatedCategory : cat
-        )
-      )
-      
-      // Reload photos to reflect category name changes
-      await loadPhotos()
-      
-      setEditingCategory(null)
-      setIsEditCategoryOpen(false)
-      toast.success('Category updated successfully')
-      
-    } catch (error) {
-      console.error('Failed to update category:', error)
-      toast.error('Failed to update category')
-    }
-  }
-
-  const cancelEditCategory = () => {
+    await updateCategory(editingCategory.id, editingCategory)
     setEditingCategory(null)
     setIsEditCategoryOpen(false)
   }
 
-  const FileDropZone = ({ onDrop, children }: { onDrop: (files: FileList) => void, children: React.ReactNode }) => (
-    <div
-      className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
-      onDragOver={(e) => { e.preventDefault() }}
-      onDrop={(e) => {
-        e.preventDefault()
-        if (e.dataTransfer.files) onDrop(e.dataTransfer.files)
-      }}
-      onClick={() => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.multiple = true
-        input.accept = 'image/*'
-        input.onchange = (e) => {
-          const target = e.target as HTMLInputElement
-          if (target.files) onDrop(target.files)
-        }
-        input.click()
-      }}
-    >
-      {children}
-    </div>
-  )
+  const runDuplicateDetectionWithSettings = async () => {
+    await runDuplicateDetection({
+      checkFileSize: detectionSettings.checkFileSize,
+      checkFilename: detectionSettings.checkFilename,
+      checkHash: detectionSettings.checkHash,
+      similarityThreshold: detectionSettings.similarityThreshold
+    })
+    setDuplicateDetectionOpen(false)
+  }
+
+  const toggleDuplicateGroupSelection = (groupId: string) => {
+    setSelectedDuplicateGroups(current => 
+      current.includes(groupId)
+        ? current.filter(id => id !== groupId)
+        : [...current, groupId]
+    )
+  }
+
+  const processSelectedDuplicateGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
+    if (selectedDuplicateGroups.length === 0) return
+    
+    await processDuplicateGroups(selectedDuplicateGroups, action)
+    setSelectedDuplicateGroups([])
+  }
+
+  const compareItemsInGroup = (items: OneDriveItem[]) => {
+    setCompareItems(items)
+    setIsCompareOpen(true)
+  }
+
+  const keepItemInGroup = async (groupItems: OneDriveItem[], keepItem: OneDriveItem) => {
+    const itemsToDelete = groupItems.filter(item => item.id !== keepItem.id).map(item => item.id)
+    if (itemsToDelete.length > 0) {
+      await deleteItems(itemsToDelete)
+      setIsCompareOpen(false)
+    }
+  }
+
+  // Authentication screen
+  if (!isAuthenticated && !isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Toaster richColors position="top-right" />
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <MicrosoftOutlookLogo className="w-16 h-16 mx-auto mb-4 text-blue-500" />
+            <CardTitle className="text-2xl">OneDrive Photo Sorter</CardTitle>
+            <p className="text-muted-foreground">
+              Connect to your OneDrive to organize and manage your photos with advanced duplicate detection and batch processing.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <h3 className="font-medium">Features:</h3>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Parallel processing for fast photo loading</li>
+                <li>• Advanced duplicate detection algorithms</li>
+                <li>• Batch operations for efficient management</li>
+                <li>• Smart categorization with custom patterns</li>
+                <li>• Visual comparison tools</li>
+              </ul>
+            </div>
+            <Button onClick={authenticate} className="w-full" size="lg">
+              <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
+              Connect to OneDrive
+            </Button>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Loading screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8">
+            <div className="text-center space-y-4">
+              <CloudArrowDown className="w-12 h-12 text-primary mx-auto animate-bounce" />
+              <h3 className="text-lg font-medium">Connecting to OneDrive...</h3>
+              <p className="text-muted-foreground">Please wait while we authenticate your account.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <Toaster richColors position="top-right" />
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">OneDrive Photo Sorter</h1>
+            <p className="text-muted-foreground">
+              Organize your photos with parallel processing and batch operations
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="text-sm text-muted-foreground">
+                Welcome, {user.displayName}
+              </div>
+            )}
+            <Button variant="outline" onClick={logout} size="sm">
+              <SignOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        {progress && (
+          <Card>
+            <CardContent className="py-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{progress.operation}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {progress.current} / {progress.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={(progress.current / progress.total) * 100} 
+                  className="w-full" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search and Filter Controls */}
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-64">
+                <div className="relative">
+                  <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search photos..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
+                <SelectTrigger className="w-48">
+                  <Funnel className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        {category.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-32">
+                  <SortAscending className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="date">Date</SelectItem>
+                  <SelectItem value="size">Size</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+
+
+
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -519,230 +405,115 @@ function PhotoSorter() {
           <p className="text-muted-foreground">Organize your photos using existing folder patterns and remove duplicates</p>
         </div>
 
-        {/* Step Indicator */}
-        <div className="flex justify-center space-x-4">
-          {(['upload', 'analyze', 'sort', 'review'] as const).map((step, index) => (
-            <div key={step} className={`flex items-center ${index > 0 ? 'ml-4' : ''}`}>
-              {index > 0 && <div className="w-8 h-px bg-border mr-4" />}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                currentStep === step ? 'bg-primary text-primary-foreground' : 
-                ['upload', 'analyze', 'sort', 'review'].indexOf(currentStep) > index ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                {index + 1}
-              </div>
-              <span className="ml-2 text-sm capitalize">{step}</span>
-            </div>
-          ))}
-        </div>
 
-        {/* Upload Structure Analysis */}
-        {currentStep === 'upload' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Folder className="w-5 h-5" />
-                Getting Started
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-4">
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
-                <div>
-                  <p className="text-lg font-medium mb-2">Welcome to Photo Sorter</p>
-                  <p className="text-muted-foreground mb-4">
-                    Your intelligent photo organization system is ready. Start by uploading some photos below.
-                  </p>
-                </div>
-                <Button onClick={() => setCurrentStep('sort')}>Get Started</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Categories Display */}
-        {categories.length > 0 && currentStep !== 'upload' && (
+        {categories.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Categories ({categories.length})</span>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    Drag to reorder
-                  </Badge>
-                  
-                  {/* Create Category Dialog */}
-                  <Dialog open={isCreateCategoryOpen} onOpenChange={setIsCreateCategoryOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <Plus className="w-4 h-4 mr-1" />
-                        New Category
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <FolderPlus className="w-5 h-5" />
-                          Create New Category
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="category-name">Category Name</Label>
-                          <Input
-                            id="category-name"
-                            placeholder="Enter category name..."
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault()
-                                createNewCategory()
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="category-pattern">Pattern Description (Optional)</Label>
-                          <Input
-                            id="category-pattern"
-                            placeholder="e.g., contains: vacation, beach, summer"
-                            value={newCategoryPattern}
-                            onChange={(e) => setNewCategoryPattern(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault()
-                                createNewCategory()
-                              }
-                            }}
-                          />
-                        </div>
-                        {selectedPhotos.length > 0 && (
-                          <Alert>
-                            <AlertDescription>
-                              {selectedPhotos.length} selected photos will be moved to this new category.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => {
-                              setIsCreateCategoryOpen(false)
-                              setNewCategoryName('')
-                              setNewCategoryPattern('')
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={createNewCategory}
-                            disabled={!newCategoryName.trim()}
-                          >
-                            Create Category
-                          </Button>
-                        </div>
+              <div className="flex items-center justify-between">
+                <CardTitle>Categories ({categories.length})</CardTitle>
+                
+                <Dialog open={isCreateCategoryOpen} onOpenChange={setIsCreateCategoryOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Plus className="w-4 h-4 mr-1" />
+                      New Category
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <FolderPlus className="w-5 h-5" />
+                        Create New Category
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="category-name">Category Name</Label>
+                        <Input
+                          id="category-name"
+                          placeholder="Enter category name..."
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                        />
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  {/* Edit Category Dialog */}
-                  <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <PencilSimple className="w-5 h-5" />
-                          Edit Category
-                        </DialogTitle>
-                      </DialogHeader>
-                      {editingCategory && (
-                        <div className="space-y-4 pt-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="edit-category-name">Category Name</Label>
-                            <Input
-                              id="edit-category-name"
-                              placeholder="Enter category name..."
-                              value={editingCategory.name}
-                              onChange={(e) => setEditingCategory({
-                                ...editingCategory,
-                                name: e.target.value
-                              })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault()
-                                  saveEditCategory()
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="edit-category-pattern">Pattern Description</Label>
-                            <Input
-                              id="edit-category-pattern"
-                              placeholder="e.g., contains: vacation, beach, summer"
-                              value={editingCategory.pattern}
-                              onChange={(e) => setEditingCategory({
-                                ...editingCategory,
-                                pattern: e.target.value
-                              })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault()
-                                  saveEditCategory()
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="outline" 
-                              onClick={cancelEditCategory}
-                            >
-                              Cancel
-                            </Button>
-                            <Button 
-                              onClick={saveEditCategory}
-                              disabled={!editingCategory.name.trim()}
-                            >
-                              Save Changes
-                            </Button>
-                          </div>
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="category-patterns">Matching Patterns (comma-separated)</Label>
+                        <Input
+                          id="category-patterns"
+                          placeholder="e.g., vacation, beach, summer"
+                          value={newCategoryPatterns}
+                          onChange={(e) => setNewCategoryPatterns(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="category-color">Category Color</Label>
+                        <Input
+                          id="category-color"
+                          type="color"
+                          value={newCategoryColor}
+                          onChange={(e) => setNewCategoryColor(e.target.value)}
+                        />
+                      </div>
+                      {selectedItems.length > 0 && (
+                        <Alert>
+                          <AlertDescription>
+                            {selectedItems.length} selected photos will be moved to this new category.
+                          </AlertDescription>
+                        </Alert>
                       )}
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardTitle>
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsCreateCategoryOpen(false)
+                            setNewCategoryName('')
+                            setNewCategoryPatterns('')
+                            setNewCategoryColor('#3b82f6')
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={createNewCategory}
+                          disabled={!newCategoryName.trim()}
+                        >
+                          Create Category
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categories.map((category, index) => (
+                {categories.map((category) => (
                   <div
-                    key={`${category.id}-${index}`}
-                    className={`border rounded-lg p-4 space-y-2 cursor-move transition-all duration-200 group ${
-                      draggedCategory === index 
-                        ? 'opacity-50 scale-95' 
-                        : dragOverIndex === index 
-                          ? 'border-primary shadow-md scale-105' 
-                          : 'hover:border-accent hover:shadow-sm'
-                    }`}
-                    draggable
-                    onDragStart={(e) => handleCategoryDragStart(e, index)}
-                    onDragOver={(e) => handleCategoryDragOver(e, index)}
-                    onDragLeave={handleCategoryDragLeave}
-                    onDrop={(e) => handleCategoryDrop(e, index)}
-                    onDragEnd={handleCategoryDragEnd}
+                    key={category.id}
+                    className="border rounded-lg p-4 space-y-2 transition-all duration-200 group hover:border-accent hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <DotsSixVertical className="w-4 h-4 text-muted-foreground" />
+                        <div 
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
                         <h3 className="font-medium">{category.name}</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{category.photoCount} photos</Badge>
+                        <Badge variant="secondary">
+                          {items.filter(item => 
+                            category.patterns.some(pattern =>
+                              item.name.toLowerCase().includes(pattern.toLowerCase())
+                            )
+                          ).length} photos
+                        </Badge>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => openEditCategory(category.id)}
+                          onClick={() => openEditCategory(category)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <PencilSimple className="w-4 h-4" />
@@ -757,7 +528,9 @@ function PhotoSorter() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">{category.pattern}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Patterns: {category.patterns.join(', ')}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -765,51 +538,132 @@ function PhotoSorter() {
           </Card>
         )}
 
-        {/* Photo Upload */}
-        {currentStep === 'sort' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Image className="w-5 h-5" />
-                Upload New Photos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FileDropZone onDrop={handleFileUpload}>
-                <Image className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">Upload photos to sort</p>
-                <p className="text-muted-foreground mb-4">
-                  We'll categorize them based on the patterns we learned
-                </p>
-                <Button>Select Photos</Button>
-              </FileDropZone>
-              
-              {uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span>Uploading photos...</span>
-                    <span>{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="w-full" />
+        {/* Edit Category Dialog */}
+        <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PencilSimple className="w-5 h-5" />
+                Edit Category
+              </DialogTitle>
+            </DialogHeader>
+            {editingCategory && (
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category-name">Category Name</Label>
+                  <Input
+                    id="edit-category-name"
+                    placeholder="Enter category name..."
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      name: e.target.value
+                    })}
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category-patterns">Matching Patterns</Label>
+                  <Input
+                    id="edit-category-patterns"
+                    placeholder="e.g., vacation, beach, summer"
+                    value={editingCategory.patterns.join(', ')}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      patterns: e.target.value.split(',').map(p => p.trim()).filter(p => p)
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category-color">Category Color</Label>
+                  <Input
+                    id="edit-category-color"
+                    type="color"
+                    value={editingCategory.color}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      color: e.target.value
+                    })}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditingCategory(null)
+                      setIsEditCategoryOpen(false)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={saveEditCategory}
+                    disabled={!editingCategory.name.trim()}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Load Photos Button */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CloudArrowDown className="w-5 h-5" />
+              OneDrive Photos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground">
+                  {items.length > 0 
+                    ? `${items.length} photos loaded from your OneDrive`
+                    : 'Load photos from your OneDrive account'
+                  }
+                </p>
+                {filteredItems.length !== items.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredItems.length} of {items.length} photos
+                  </p>
+                )}
+              </div>
+              <Button 
+                onClick={() => loadItems(true)} 
+                disabled={isLoadingItems}
+                variant="outline"
+              >
+                {isLoadingItems ? (
+                  <>
+                    <CloudArrowDown className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <CloudArrowDown className="w-4 h-4 mr-2" />
+                    {items.length > 0 ? 'Refresh' : 'Load Photos'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Photos Grid */}
-        {photos.length > 0 && (
+        {sortedItems.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Photos ({photos.length})</CardTitle>
+                <CardTitle>Photos ({sortedItems.length})</CardTitle>
                 
                 {/* Bulk Actions Controls */}
                 <div className="flex items-center gap-4">
-                  {selectedPhotos.length > 0 && (
+                  {selectedItems.length > 0 && (
                     <>
                       <Badge variant="secondary">
-                        {selectedPhotos.length} selected
+                        {selectedItems.length} selected
                       </Badge>
                       
                       <div className="flex items-center gap-2">
@@ -821,7 +675,10 @@ function PhotoSorter() {
                             {categories.map((category) => (
                               <SelectItem key={category.id} value={category.name}>
                                 <div className="flex items-center gap-2">
-                                  <FolderOpen className="w-4 h-4" />
+                                  <div 
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: category.color }}
+                                  />
                                   {category.name}
                                 </div>
                               </SelectItem>
@@ -841,7 +698,7 @@ function PhotoSorter() {
                             if (bulkActionCategory === 'CREATE_NEW') {
                               setIsCreateCategoryOpen(true)
                             } else {
-                              moveSelectedPhotos(bulkActionCategory)
+                              moveSelectedItems(bulkActionCategory)
                             }
                           }}
                           disabled={!bulkActionCategory}
@@ -852,7 +709,7 @@ function PhotoSorter() {
                         <Button 
                           size="sm" 
                           variant="destructive"
-                          onClick={deleteSelectedPhotos}
+                          onClick={deleteSelectedItems}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Delete
@@ -861,7 +718,7 @@ function PhotoSorter() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={deselectAllPhotos}
+                          onClick={deselectAllItems}
                         >
                           <X className="w-4 h-4 mr-1" />
                           Clear
@@ -874,10 +731,10 @@ function PhotoSorter() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={selectedPhotos.length === photos.length ? deselectAllPhotos : selectAllPhotos}
+                      onClick={selectedItems.length === sortedItems.length ? deselectAllItems : selectAllItems}
                     >
                       <Check className="w-4 h-4 mr-1" />
-                      {selectedPhotos.length === photos.length ? 'Deselect All' : 'Select All'}
+                      {selectedItems.length === sortedItems.length ? 'Deselect All' : 'Select All'}
                     </Button>
                   </div>
                 </div>
@@ -885,29 +742,39 @@ function PhotoSorter() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="relative group">
+                {sortedItems.map((item) => (
+                  <div key={item.id} className="relative group">
                     {/* Selection Checkbox */}
                     <div className="absolute top-2 right-2 z-10">
                       <Checkbox
-                        checked={selectedPhotos.includes(photo.id)}
-                        onCheckedChange={() => togglePhotoSelection(photo.id)}
+                        checked={selectedItems.includes(item.id)}
+                        onCheckedChange={() => toggleItemSelection(item.id)}
                         className="bg-white/80 backdrop-blur-sm border-white"
                       />
                     </div>
                     
                     <div 
                       className={`aspect-square rounded-lg overflow-hidden bg-muted transition-all duration-200 ${
-                        selectedPhotos.includes(photo.id) 
+                        selectedItems.includes(item.id) 
                           ? 'ring-2 ring-primary ring-offset-2' 
                           : ''
                       }`}
-                      onClick={() => togglePhotoSelection(photo.id)}
+                      onClick={() => toggleItemSelection(item.id)}
                     >
                       <img
-                        src={`${API_BASE_URL}/photos/${photo.id}/file`}
-                        alt={photo.name}
+                        src={oneDriveService.getThumbnailUrl(item) || `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/thumbnails/0/medium/content`}
+                        alt={item.name}
                         className="w-full h-full object-cover cursor-pointer"
+                        onError={(e) => {
+                          // Fallback to a placeholder if thumbnail fails
+                          e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                              <rect width="200" height="200" fill="#f3f4f6"/>
+                              <path d="M50 150 L150 50 L175 75 L75 175 Z" fill="#d1d5db"/>
+                              <circle cx="75" cy="75" r="15" fill="#d1d5db"/>
+                            </svg>
+                          `)}`
+                        }}
                       />
                     </div>
                     
@@ -924,29 +791,32 @@ function PhotoSorter() {
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle>{photo.name}</DialogTitle>
+                            <DialogTitle>{item.name}</DialogTitle>
                           </DialogHeader>
                           <img 
-                            src={`${API_BASE_URL}/photos/${photo.id}/file`} 
-                            alt={photo.name} 
+                            src={`https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`}
+                            alt={item.name} 
                             className="w-full h-auto rounded-lg" 
                           />
                           <div className="space-y-2">
-                            <p><strong>Size:</strong> {(photo.size / 1024 / 1024).toFixed(2)} MB</p>
-                            <p><strong>Category:</strong> {photo.categoryName || 'Uncategorized'}</p>
+                            <p><strong>Size:</strong> {oneDriveService.formatFileSize(item.size)}</p>
+                            <p><strong>Modified:</strong> {new Date(item.lastModifiedDateTime).toLocaleDateString()}</p>
+                            {item.photo?.takenDateTime && (
+                              <p><strong>Taken:</strong> {new Date(item.photo.takenDateTime).toLocaleDateString()}</p>
+                            )}
+                            {item.image && (
+                              <p><strong>Dimensions:</strong> {item.image.width} × {item.image.height}</p>
+                            )}
                           </div>
                         </DialogContent>
                       </Dialog>
                     </div>
                     
-                    {photo.categoryName && (
-                      <Badge className="absolute top-2 left-2" variant="secondary">
-                        {photo.categoryName}
-                      </Badge>
-                    )}
-                    
                     <div className="mt-1">
-                      <p className="text-xs truncate">{photo.name}</p>
+                      <p className="text-xs truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {oneDriveService.formatFileSize(item.size)}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -956,7 +826,7 @@ function PhotoSorter() {
         )}
 
         {/* Duplicates Review */}
-        {(duplicates.length > 0 || duplicateGroups.length > 0) && (
+        {duplicateGroups.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -966,16 +836,6 @@ function PhotoSorter() {
                 </CardTitle>
                 
                 <div className="flex items-center gap-2">
-                  {/* Testing Suite Button */}
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => setShowTester(true)}
-                  >
-                    <TestTube className="w-4 h-4 mr-1" />
-                    Test Suite
-                  </Button>
-
                   {/* Duplicate Detection Settings Dialog */}
                   <Dialog open={duplicateDetectionOpen} onOpenChange={setDuplicateDetectionOpen}>
                     <DialogTrigger asChild>
@@ -1039,23 +899,12 @@ function PhotoSorter() {
                               </div>
                               
                               <div className="flex items-center justify-between">
-                                <Label htmlFor="check-hash" className="text-sm">Image Hash</Label>
+                                <Label htmlFor="check-hash" className="text-sm">Content Hash</Label>
                                 <Switch
                                   id="check-hash"
-                                  checked={detectionSettings.checkImageHash}
+                                  checked={detectionSettings.checkHash}
                                   onCheckedChange={(checked) => 
-                                    setDetectionSettings(prev => ({ ...prev, checkImageHash: checked }))
-                                  }
-                                />
-                              </div>
-                              
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="check-visual" className="text-sm">Visual Similarity (slower)</Label>
-                                <Switch
-                                  id="check-visual"
-                                  checked={detectionSettings.checkVisualSimilarity}
-                                  onCheckedChange={(checked) => 
-                                    setDetectionSettings(prev => ({ ...prev, checkVisualSimilarity: checked }))
+                                    setDetectionSettings(prev => ({ ...prev, checkHash: checked }))
                                   }
                                 />
                               </div>
@@ -1071,10 +920,10 @@ function PhotoSorter() {
                             Cancel
                           </Button>
                           <Button 
-                            onClick={runDuplicateDetection}
-                            disabled={isDetectingDuplicates}
+                            onClick={runDuplicateDetectionWithSettings}
+                            disabled={isDuplicateDetectionRunning}
                           >
-                            {isDetectingDuplicates ? (
+                            {isDuplicateDetectionRunning ? (
                               <>
                                 <Lightning className="w-4 h-4 mr-1 animate-pulse" />
                                 Detecting...
@@ -1098,7 +947,7 @@ function PhotoSorter() {
                         {selectedDuplicateGroups.length} groups selected
                       </Badge>
                       
-                      <Select onValueChange={(value) => processSelectedGroups(value as any)}>
+                      <Select onValueChange={(value) => processSelectedDuplicateGroups(value as any)}>
                         <SelectTrigger className="w-40">
                           <SelectValue placeholder="Batch action..." />
                         </SelectTrigger>
@@ -1114,166 +963,90 @@ function PhotoSorter() {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="groups" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="groups">Duplicate Groups ({duplicateGroups.length})</TabsTrigger>
-                  <TabsTrigger value="individual">Individual Duplicates ({duplicates.length})</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="groups" className="space-y-4">
-                  {duplicateGroups.length > 0 ? (
-                    <>
-                      <Alert>
-                        <AlertDescription>
-                          Found {duplicateGroups.length} groups with potential duplicates. Review each group and choose which photo to keep.
-                        </AlertDescription>
-                      </Alert>
-                      
-                      <div className="space-y-4">
-                        {duplicateGroups.map((group, groupIndex) => (
-                          <Card key={groupIndex} className="border-orange-200">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    checked={selectedDuplicateGroups.includes(groupIndex)}
-                                    onCheckedChange={() => toggleDuplicateGroupSelection(groupIndex)}
-                                  />
-                                  <h4 className="font-medium">Group {groupIndex + 1}</h4>
-                                  <Badge variant="outline">{group.length} photos</Badge>
-                                  {group[0]?.similarity && (
-                                    <Badge variant="secondary">
-                                      {Math.round(group[0].similarity)}% similar
-                                    </Badge>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => comparePhotosInGroup(group)}
-                                  >
-                                    <ArrowsLeftRight className="w-4 h-4 mr-1" />
-                                    Compare
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {group.map((photo) => (
-                                  <div key={photo.id} className="relative group">
-                                    <div className="aspect-square rounded-lg overflow-hidden bg-muted">
-                                      <img
-                                        src={`${API_BASE_URL}/photos/${photo.id}/file`}
-                                        alt={photo.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                    
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
-                                      <Button 
-                                        size="sm" 
-                                        variant="secondary"
-                                        onClick={() => keepPhotoInGroup(group, photo)}
-                                      >
-                                        <Crown className="w-4 h-4" />
-                                      </Button>
-                                      <Button 
-                                        size="sm" 
-                                        variant="destructive"
-                                        onClick={() => removeDuplicate(photo.id)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                    
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-xs truncate font-medium">{photo.name}</p>
-                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                        <span>{(photo.size / 1024 / 1024).toFixed(1)}MB</span>
-                                        {photo.dimensions && (
-                                          <span>{photo.dimensions.width}×{photo.dimensions.height}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+              <Alert className="mb-4">
+                <AlertDescription>
+                  Found {duplicateGroups.length} groups with potential duplicates. Review each group and choose which photo to keep.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-4">
+                {duplicateGroups.map((group) => (
+                  <Card key={group.id} className="border-orange-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={selectedDuplicateGroups.includes(group.id)}
+                            onCheckedChange={() => toggleDuplicateGroupSelection(group.id)}
+                          />
+                          <h4 className="font-medium">Group</h4>
+                          <Badge variant="outline">{group.items.length} photos</Badge>
+                          <Badge variant="secondary">
+                            {Math.round(group.similarity)}% similar
+                          </Badge>
+                          {group.reason.length > 0 && (
+                            <Badge variant="outline">
+                              {group.reason.join(', ')}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => compareItemsInGroup(group.items)}
+                          >
+                            <ArrowsLeftRight className="w-4 h-4 mr-1" />
+                            Compare
+                          </Button>
+                        </div>
                       </div>
-                    </>
-                  ) : (
-                    <Alert>
-                      <AlertDescription>
-                        No duplicate groups found. Run duplicate detection to scan for similar photos.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="individual" className="space-y-4">
-                  {duplicates.length > 0 ? (
-                    <>
-                      <Alert>
-                        <AlertDescription>
-                          Found {duplicates.length} individual duplicate photos. These are exact matches or very similar files.
-                        </AlertDescription>
-                      </Alert>
                       
-                      <div className="space-y-4">
-                        {duplicates.map((duplicate) => (
-                          <div key={duplicate.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                            <img
-                              src={`${API_BASE_URL}/photos/${duplicate.id}/file`}
-                              alt={duplicate.name}
-                              className="w-16 h-16 object-cover rounded"
-                            />
-                            <div className="flex-1">
-                              <p className="font-medium">{duplicate.name}</p>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>{(duplicate.size / 1024 / 1024).toFixed(2)} MB</span>
-                                {duplicate.dimensions && (
-                                  <span>{duplicate.dimensions.width}×{duplicate.dimensions.height}</span>
-                                )}
-                                {duplicate.similarity && (
-                                  <Badge variant="outline">{Math.round(duplicate.similarity)}% match</Badge>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {group.items.map((item) => (
+                          <div key={item.id} className="relative group">
+                            <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                              <img
+                                src={oneDriveService.getThumbnailUrl(item) || `https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/thumbnails/0/medium/content`}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                              <Button 
+                                size="sm" 
+                                variant="secondary"
+                                onClick={() => keepItemInGroup(group.items, item)}
+                              >
+                                <Crown className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={() => deleteItems([item.id])}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            
+                            <div className="mt-2 space-y-1">
+                              <p className="text-xs truncate font-medium">{item.name}</p>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{oneDriveService.formatFileSize(item.size)}</span>
+                                {item.image && (
+                                  <span>{item.image.width}×{item.image.height}</span>
                                 )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => markAsNotDuplicate(duplicate.id)}
-                              >
-                                <X className="w-4 h-4 mr-1" />
-                                Not Duplicate
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => removeDuplicate(duplicate.id)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Remove
-                              </Button>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </>
-                  ) : (
-                    <Alert>
-                      <AlertDescription>
-                        No individual duplicates found.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </TabsContent>
-              </Tabs>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1288,22 +1061,22 @@ function PhotoSorter() {
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {comparePhotos.slice(0, 2).map((photo, index) => (
-                <div key={photo.id} className="space-y-4">
+              {compareItems.slice(0, 2).map((item, index) => (
+                <div key={item.id} className="space-y-4">
                   <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                     <img
-                      src={`${API_BASE_URL}/photos/${photo.id}/file`}
-                      alt={photo.name}
+                      src={`https://graph.microsoft.com/v1.0/me/drive/items/${item.id}/content`}
+                      alt={item.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium truncate">{photo.name}</h4>
+                      <h4 className="font-medium truncate">{item.name}</h4>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          onClick={() => keepPhotoInGroup(comparePhotos, photo)}
+                          onClick={() => keepItemInGroup(compareItems, item)}
                         >
                           <Crown className="w-4 h-4 mr-1" />
                           Keep This
@@ -1311,7 +1084,7 @@ function PhotoSorter() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => removeDuplicate(photo.id)}
+                          onClick={() => deleteItems([item.id])}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Delete
@@ -1321,22 +1094,22 @@ function PhotoSorter() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Size:</span>
-                        <p>{(photo.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p>{oneDriveService.formatFileSize(item.size)}</p>
                       </div>
-                      {photo.dimensions && (
+                      {item.image && (
                         <div>
                           <span className="text-muted-foreground">Dimensions:</span>
-                          <p>{photo.dimensions.width} × {photo.dimensions.height}</p>
+                          <p>{item.image.width} × {item.image.height}</p>
                         </div>
                       )}
                       <div>
-                        <span className="text-muted-foreground">Created:</span>
-                        <p>{new Date(photo.createdAt).toLocaleDateString()}</p>
+                        <span className="text-muted-foreground">Modified:</span>
+                        <p>{new Date(item.lastModifiedDateTime).toLocaleDateString()}</p>
                       </div>
-                      {photo.categoryName && (
+                      {item.photo?.takenDateTime && (
                         <div>
-                          <span className="text-muted-foreground">Category:</span>
-                          <p>{photo.categoryName}</p>
+                          <span className="text-muted-foreground">Taken:</span>
+                          <p>{new Date(item.photo.takenDateTime).toLocaleDateString()}</p>
                         </div>
                       )}
                     </div>
@@ -1347,34 +1120,43 @@ function PhotoSorter() {
           </DialogContent>
         </Dialog>
 
-        {/* Duplicate Detection Testing Suite */}
-        {showTester && (
-          <Card>
-            <CardContent className="p-6">
-              <DuplicateDetectionTester onClose={() => setShowTester(false)} />
-            </CardContent>
-          </Card>
-        )}
-
         {/* Actions */}
-        {photos.length > 0 && (
+        {items.length > 0 && (
           <div className="flex justify-center space-x-4">
-            <Button onClick={() => setCurrentStep('sort')} variant="outline">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload More
+            <Button onClick={() => loadItems(true)} variant="outline">
+              <CloudArrowDown className="w-4 h-4 mr-2" />
+              Refresh Photos
             </Button>
             <Button 
               onClick={() => setDuplicateDetectionOpen(true)}
               variant="outline"
+              disabled={isDuplicateDetectionRunning}
             >
               <MagnifyingGlass className="w-4 h-4 mr-2" />
-              Scan for Duplicates
-            </Button>
-            <Button disabled>
-              <Download className="w-4 h-4 mr-2" />
-              Export Organized
+              {isDuplicateDetectionRunning ? 'Scanning...' : 'Scan for Duplicates'}
             </Button>
           </div>
+        )}
+
+        {/* Empty State */}
+        {items.length === 0 && !isLoadingItems && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center space-y-4">
+                <Image className="w-16 h-16 text-muted-foreground mx-auto" />
+                <div>
+                  <h3 className="text-lg font-medium">No photos loaded</h3>
+                  <p className="text-muted-foreground">
+                    Click "Load Photos" to start organizing your OneDrive photos.
+                  </p>
+                </div>
+                <Button onClick={() => loadItems()}>
+                  <CloudArrowDown className="w-4 h-4 mr-2" />
+                  Load Photos from OneDrive
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

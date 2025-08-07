@@ -1,159 +1,141 @@
-# PhotoSorter Frontend
+# OneDrive Photo Sorter - Setup Guide
 
-A React TypeScript frontend for intelligent photo organization and management, working with the PhotoSorter C# Web API backend.
+## Prerequisites
 
-## Quick Start
+1. **Microsoft Azure App Registration**
+   - Go to [Azure Portal](https://portal.azure.com) > App registrations
+   - Create a new registration with these settings:
+     - Name: "OneDrive Photo Sorter"
+     - Account types: "Accounts in any organizational directory and personal Microsoft accounts"
+     - Redirect URI: `http://localhost:5173/auth/callback` (for development)
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+2. **API Permissions**
+   - Add these Microsoft Graph permissions:
+     - `Files.ReadWrite` (Delegated)
+     - `offline_access` (Delegated)
+     - `User.Read` (Delegated)
 
-### Installation & Development
+## Environment Setup
 
-1. **Install dependencies:**
+1. Copy `.env.example` to `.env`:
    ```bash
-   npm install
+   cp .env.example .env
    ```
 
-2. **Start the development server:**
-   ```bash
-   npm run dev
+2. Update `.env` with your Azure app details:
+   ```
+   VITE_ONEDRIVE_CLIENT_ID=your-azure-app-client-id
    ```
 
-3. **Ensure the backend is running:**
-   The frontend expects the C# backend API to be running at `https://localhost:7001`
+## Features
 
-The frontend will be available at `http://localhost:5173`.
+### Cloud Integration
+- **Microsoft OneDrive Authentication**: Secure OAuth 2.0 login
+- **Parallel Photo Loading**: Fast retrieval with configurable concurrency
+- **Batch Operations**: Process multiple photos simultaneously
+- **Real-time Sync**: Direct integration with OneDrive storage
 
-## Architecture
+### Advanced Duplicate Detection
+- **Multi-Algorithm Approach**:
+  - File size comparison
+  - Filename similarity using Levenshtein distance
+  - Content hash comparison (SHA1 and QuickXOR)
+  - Configurable similarity thresholds
 
-### Tech Stack
-- **React 18** with TypeScript
-- **Vite** for build tooling and development server
-- **Tailwind CSS** for styling with custom design system
-- **shadcn/ui** for component library
-- **Phosphor Icons** for iconography
-- **Sonner** for toast notifications
+### Batch Processing
+- **Parallel API Requests**: Up to 20 requests per batch (Microsoft Graph limit)
+- **Concurrent Batch Processing**: Multiple batches processed simultaneously
+- **Progress Tracking**: Real-time progress updates for long operations
+- **Error Resilience**: Automatic retry with exponential backoff
 
-### Project Structure
-```
-src/
-├── components/ui/       # shadcn/ui components
-├── services/           # API service layer
-├── App.tsx            # Main application component
-├── index.css          # Global styles and theme
-└── main.tsx           # Application entry point
-```
+### Smart Categorization
+- **Pattern-Based Matching**: Custom patterns for auto-categorization
+- **Color-Coded Categories**: Visual organization with user-customizable colors
+- **Drag-and-Drop Organization**: Intuitive category management
+- **Folder Creation**: Automatic OneDrive folder creation for categories
 
-### Key Features
+## Usage
 
-#### Photo Management
-- **Drag & Drop Upload**: Intuitive file upload with visual feedback
-- **Bulk Operations**: Multi-select with checkboxes for batch operations
-- **Preview**: Full-size photo preview dialogs
-- **Grid Display**: Responsive photo grid with hover effects
+1. **Authentication**
+   - Click "Connect to OneDrive" 
+   - Sign in with your Microsoft account
+   - Grant necessary permissions
 
-#### Category System
-- **Drag & Drop Reordering**: Visual category reordering
-- **Live Creation**: Create categories on-the-fly
-- **Pattern Editing**: Modify category patterns and names
-- **Smart Suggestions**: Automatic photo categorization
+2. **Load Photos**
+   - Click "Load Photos from OneDrive"
+   - Photos are loaded in parallel from various OneDrive locations
+   - Thumbnails are automatically generated
 
-#### Duplicate Management
-- **Visual Review**: Side-by-side duplicate comparison
-- **One-Click Removal**: Easy duplicate photo removal
-- **Smart Detection**: Backend-powered duplicate detection
+3. **Create Categories**
+   - Use "New Category" to create organizational groups
+   - Define matching patterns (e.g., "vacation, beach, holiday")
+   - Choose category colors for visual organization
 
-### API Integration
+4. **Organize Photos**
+   - Select multiple photos using checkboxes
+   - Move to categories using bulk actions
+   - Create new categories on-the-fly
 
-The frontend communicates with the C# backend through a dedicated API service layer:
+5. **Duplicate Detection**
+   - Click "Scan for Duplicates"
+   - Adjust detection settings (similarity threshold, detection methods)
+   - Review duplicate groups and choose which photos to keep
+   - Use batch actions to process multiple groups at once
 
-```typescript
-// services/api.ts
-class ApiService {
-  // Category operations
-  async getCategories(): Promise<CategoryDto[]>
-  async createCategory(category: CreateCategoryDto): Promise<CategoryDto>
-  
-  // Photo operations  
-  async uploadPhoto(file: File): Promise<PhotoDto>
-  async getPhotos(): Promise<PhotoDto[]>
-  
-  // Bulk operations
-  async updateMultiplePhotosCategory(photoIds: number[], categoryId: number)
-}
-```
+## Performance Features
 
-### State Management
+### Parallel Processing
+- Configurable concurrency limits (default: 5 parallel requests)
+- Batch size optimization (20 items per Microsoft Graph batch)
+- Smart throttling to respect API rate limits
 
-The app uses React hooks for state management:
-- **Local State**: `useState` for UI state and temporary data
-- **API State**: Direct API calls with loading/error handling
-- **Real-time Updates**: Automatic data refresh after mutations
-
-### Design System
-
-#### Color Palette
-- **Primary**: Deep blue (`oklch(0.47 0.12 264)`) for actions and focus
-- **Secondary**: Light gray tones for backgrounds and subtle elements
-- **Accent**: Bright blue for interactive highlights
-- **Destructive**: Red for delete actions and warnings
-
-#### Typography
-- **Font**: Inter (Google Fonts) for all text
-- **Hierarchy**: Clear size relationships from headings to body text
-- **Spacing**: Consistent vertical rhythm and line heights
-
-#### Components
-- **Cards**: Elevated surfaces for content grouping
-- **Buttons**: Multiple variants (primary, secondary, outline, ghost)
-- **Inputs**: Form controls with focus states and validation
-- **Dialogs**: Modal overlays for detailed views and forms
-
-### User Experience
-
-#### Interactions
-- **Progressive Disclosure**: Features revealed as needed
-- **Visual Feedback**: Loading states, progress bars, and confirmations  
-- **Error Handling**: User-friendly error messages with recovery options
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-
-#### Workflows
-1. **Photo Upload**: Drag & drop → automatic categorization → duplicate detection
-2. **Organization**: Select photos → choose category → bulk move
-3. **Category Management**: Create → edit → reorder via drag & drop
-4. **Duplicate Review**: View duplicates → compare → remove unwanted copies
-
-### Performance Optimizations
-
-- **Lazy Loading**: Images loaded on demand
-- **Optimistic Updates**: Immediate UI feedback before API confirmation
-- **Debounced Inputs**: Reduced API calls for search/filter operations
-- **Chunked Uploads**: Large files uploaded in chunks with progress tracking
+### Caching Strategy
+- Local KV storage for categories and user preferences
+- OneDrive thumbnail caching for faster loading
+- Progress state persistence across sessions
 
 ### Error Handling
+- Automatic token refresh for expired authentication
+- Retry logic for network failures
+- Graceful degradation for API errors
+- User-friendly error messages with recovery options
 
-Comprehensive error handling throughout the application:
-- **API Errors**: Network issues and server errors with user-friendly messages
-- **Validation**: Form validation with inline error display
-- **File Uploads**: File type/size validation with clear feedback
-- **Fallbacks**: Graceful degradation when features aren't available
+## Technical Architecture
 
-### Accessibility
+### Frontend Stack
+- **React 18** with TypeScript for type safety
+- **Microsoft Graph API** for OneDrive integration
+- **shadcn/ui** components for consistent UI
+- **Tailwind CSS** for styling
+- **KV storage** for local data persistence
 
-Built with accessibility in mind:
-- **Keyboard Navigation**: Full keyboard support for all interactions
-- **Focus Management**: Visible focus indicators and logical tab order
-- **ARIA Labels**: Screen reader support for complex UI elements
-- **Color Contrast**: WCAG AA compliant color combinations
+### API Integration
+- **Microsoft Graph API v1.0** for file operations
+- **OAuth 2.0** for secure authentication
+- **Batch API** for optimized bulk operations
+- **Search API** for photo discovery
 
-### Future Enhancements
+### Security
+- **OAuth 2.0** with automatic token refresh
+- **Minimal permissions** (Files.ReadWrite, User.Read)
+- **Client-side only** - no server-side data storage
+- **Secure token storage** in browser localStorage
 
-The architecture supports easy addition of:
-- **User Authentication**: Multi-user support with JWT tokens
-- **Advanced Filters**: Search and filter photos by metadata
-- **Batch Export**: Download organized photo collections
-- **Cloud Integration**: Support for cloud storage providers
-- **AI Tagging**: Automatic photo tagging using computer vision
+## Development
 
-This frontend provides an intuitive and efficient interface for photo organization while maintaining excellent performance and user experience standards.
+Run the development server:
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+Make sure your Azure app registration includes `http://localhost:5173/auth/callback` as a redirect URI for development.
+
+## Production Deployment
+
+1. Update redirect URI in Azure app registration to your production domain
+2. Update environment variables for production
+3. Deploy to your preferred hosting service
+
+The application is fully client-side and can be deployed to any static hosting service.
