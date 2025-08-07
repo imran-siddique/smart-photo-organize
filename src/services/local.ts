@@ -1,8 +1,8 @@
 // Local File System Service for Photo Organization
-import { useKV } from '@github/spark/hooks'
+
 
 export interface LocalPhoto {
-  id: string
+    width: n
   name: string
   size: number
   type: string
@@ -10,18 +10,18 @@ export interface LocalPhoto {
   file: File
   url: string // Object URL for display
   thumbnailUrl?: string
-  dimensions?: {
-    width: number
-    height: number
-  }
-  folder?: string
+  folder: string
+  sortOrder: numb
+
+  i
+  similarity: num
 }
 
-export interface LocalCategory {
-  id: string
-  name: string
-  patterns: string[]
-  color: string
+  checkFilename: boolean
+  similarity
+
+  private photos: Lo
+  private dupli
   folder: string
   autoSort: boolean
   sortOrder: number
@@ -56,13 +56,13 @@ class LocalPhotoService {
         const photo = await this.createPhotoFromFile(file)
         if (photo) {
           newPhotos.push(photo)
-        }
+      }
       }
     }
 
     this.photos = [...this.photos, ...newPhotos]
     return newPhotos
-  }
+  p
 
   async loadPhotosFromDirectory(dirHandle: FileSystemDirectoryHandle): Promise<LocalPhoto[]> {
     const newPhotos: LocalPhoto[] = []
@@ -76,7 +76,7 @@ class LocalPhotoService {
             if (photo) {
               newPhotos.push(photo)
             }
-          }
+  }
         } else if (handle.kind === 'directory') {
           // Recursively load from subdirectories
           const subPhotos = await this.loadPhotosFromDirectory(handle)
@@ -84,37 +84,37 @@ class LocalPhotoService {
             ...photo,
             folder: `${name}/${photo.folder || ''}`.replace(/\/$/, '')
           })))
-        }
+  }
       }
-    } catch (error) {
+    return file.type.
       console.error('Error reading directory:', error)
-    }
 
-    this.photos = [...this.photos, ...newPhotos]
+
+    return [...this.photos]
     return newPhotos
   }
 
   private async createPhotoFromFile(file: File, folderPath?: string): Promise<LocalPhoto | null> {
     try {
-      const id = this.generateId()
+    
       const url = URL.createObjectURL(file)
       const dimensions = await this.getImageDimensions(file)
       
-      return {
+        if (ph
         id,
         name: file.name,
         size: file.size,
-        type: file.type,
+  }
         lastModified: file.lastModified,
-        file,
+    // Revoke
         url,
-        dimensions,
+      if (photo.thu
         folder: folderPath || ''
-      }
+    })
     } catch (error) {
       console.error('Error creating photo from file:', error)
       return null
-    }
+  // 
   }
 
   private async getImageDimensions(file: File): Promise<{ width: number; height: number } | undefined> {
@@ -122,7 +122,7 @@ class LocalPhotoService {
       const img = new Image()
       img.onload = () => {
         resolve({ width: img.naturalWidth, height: img.naturalHeight })
-        URL.revokeObjectURL(img.src)
+    return newCategory
       }
       img.onerror = () => resolve(undefined)
       img.src = URL.createObjectURL(file)
@@ -130,9 +130,9 @@ class LocalPhotoService {
   }
 
   private isImageFile(file: File): boolean {
-    return file.type.startsWith('image/') && 
+    const index = this.categories.findIndex(c
            /\.(jpg|jpeg|png|gif|bmp|webp|tiff|tif)$/i.test(file.name)
-  }
+   
 
   // Photo Management
   getPhotos(): LocalPhoto[] {
@@ -146,7 +146,7 @@ class LocalPhotoService {
   deletePhotos(photoIds: string[]): void {
     const idsToDelete = new Set(photoIds)
     
-    // Revoke object URLs to prevent memory leaks
+    const category = this.categories.find(cat => 
     this.photos
       .filter(photo => idsToDelete.has(photo.id))
       .forEach(photo => {
@@ -154,23 +154,23 @@ class LocalPhotoService {
         if (photo.thumbnailUrl) {
           URL.revokeObjectURL(photo.thumbnailUrl)
         }
-      })
+  async 
 
     this.photos = this.photos.filter(photo => !idsToDelete.has(photo.id))
   }
 
   clearAllPhotos(): void {
-    // Revoke all object URLs
+      const reasons: string[]
     this.photos.forEach(photo => {
-      URL.revokeObjectURL(photo.url)
+        const photo2 = this.photos[j
       if (photo.thumbnailUrl) {
         URL.revokeObjectURL(photo.thumbnailUrl)
       }
-    })
+      
     
     this.photos = []
     this.duplicateGroups = []
-  }
+   
 
   // Category Management
   getCategories(): LocalCategory[] {
@@ -210,7 +210,7 @@ class LocalPhotoService {
         category.autoSort && category.patterns.some(pattern =>
           photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
           (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
-        )
+      con
       )
 
       if (matchingCategory) {
@@ -228,7 +228,7 @@ class LocalPhotoService {
         photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
         (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
       )
-    )
+
   }
 
   // Duplicate Detection
@@ -236,7 +236,7 @@ class LocalPhotoService {
     const groups: LocalDuplicateGroup[] = []
     const processedIds = new Set<string>()
 
-    for (let i = 0; i < this.photos.length; i++) {
+    const shorter = n1.length > n2.length ? n2 : n
       const photo1 = this.photos[i]
       if (processedIds.has(photo1.id)) continue
 
@@ -244,15 +244,15 @@ class LocalPhotoService {
       const reasons: string[] = []
 
       for (let j = i + 1; j < this.photos.length; j++) {
-        const photo2 = this.photos[j]
+    for (let j = 0; j <= str2.length;
         if (processedIds.has(photo2.id)) continue
 
         const similarity = await this.calculateSimilarity(photo1, photo2, options)
         
         if (similarity.score >= options.similarityThreshold) {
-          duplicates.push(photo2)
+        )
           reasons.push(...similarity.reasons)
-        }
+    
       }
 
       if (duplicates.length > 1) {
@@ -260,27 +260,27 @@ class LocalPhotoService {
           id: this.generateId(),
           photos: duplicates,
           similarity: await this.calculateGroupSimilarity(duplicates, options),
-          reason: [...new Set(reasons)]
+    return [...this.duplicateGroups]
         }
-        
+  // Fil
         groups.push(group)
-        duplicates.forEach(photo => processedIds.add(photo.id))
+
       }
     }
 
     this.duplicateGroups = groups
     return groups
-  }
+
 
   private async calculateSimilarity(
     photo1: LocalPhoto, 
-    photo2: LocalPhoto, 
+          category.patte
     options: DuplicateDetectionOptions
   ): Promise<{ score: number; reasons: string[] }> {
     let score = 0
     const reasons: string[] = []
 
-    // File size comparison
+  }
     if (options.checkFileSize) {
       const sizeDiff = Math.abs(photo1.size - photo2.size) / Math.max(photo1.size, photo2.size)
       if (sizeDiff < 0.1) {
@@ -290,31 +290,31 @@ class LocalPhotoService {
     }
 
     // Filename comparison  
-    if (options.checkFilename) {
+    }
       const nameSimilarity = this.calculateNameSimilarity(photo1.name, photo2.name)
       if (nameSimilarity > 0.7) {
         score += 40
-        reasons.push('Similar filename')
+  static isFileSystemAccessSupported(): 
       }
-    }
 
-    // Content hash comparison
+
+    this.clearAllPhotos()
     if (options.checkHash) {
-      try {
+}
         const hash1 = await this.calculateFileHash(photo1.file)
         const hash2 = await this.calculateFileHash(photo2.file)
         
-        if (hash1 === hash2) {
+
           score += 50
-          reasons.push('Identical content')
+
         }
       } catch (error) {
         console.warn('Hash calculation failed:', error)
-      }
+
     }
 
     // Dimension comparison
-    if (photo1.dimensions && photo2.dimensions) {
+
       const widthDiff = Math.abs(photo1.dimensions.width - photo2.dimensions.width)
       const heightDiff = Math.abs(photo1.dimensions.height - photo2.dimensions.height)
       
@@ -322,13 +322,13 @@ class LocalPhotoService {
         score += 20
         reasons.push('Same dimensions')
       } else if (widthDiff < 10 && heightDiff < 10) {
-        score += 10
+
         reasons.push('Similar dimensions')
-      }
+
     }
 
     return { score: Math.min(100, score), reasons }
-  }
+
 
   private async calculateGroupSimilarity(photos: LocalPhoto[], options: DuplicateDetectionOptions): Promise<number> {
     if (photos.length < 2) return 0
@@ -340,7 +340,7 @@ class LocalPhotoService {
       for (let j = i + 1; j < photos.length; j++) {
         const similarity = await this.calculateSimilarity(photos[i], photos[j], options)
         totalScore += similarity.score
-        comparisons++
+
       }
     }
 
@@ -350,22 +350,22 @@ class LocalPhotoService {
   private calculateNameSimilarity(name1: string, name2: string): number {
     const normalize = (str: string) => str.toLowerCase().replace(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|tif)$/i, '')
     const n1 = normalize(name1)
-    const n2 = normalize(name2)
-    
+
+
     if (n1 === n2) return 1
 
     const longer = n1.length > n2.length ? n1 : n2
     const shorter = n1.length > n2.length ? n2 : n1
 
     if (longer.length === 0) return 1
-    
+
     const distance = this.levenshteinDistance(longer, shorter)
     return (longer.length - distance) / longer.length
   }
 
   private levenshteinDistance(str1: string, str2: string): number {
     const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null))
-    
+
     for (let i = 0; i <= str1.length; i++) matrix[0][i] = i
     for (let j = 0; j <= str2.length; j++) matrix[j][0] = j
     
@@ -376,25 +376,25 @@ class LocalPhotoService {
           matrix[j][i - 1] + 1,
           matrix[j - 1][i] + 1,
           matrix[j - 1][i - 1] + indicator
-        )
+
       }
-    }
+
     
     return matrix[str2.length][str1.length]
   }
 
   private async calculateFileHash(file: File): Promise<string> {
-    const buffer = await file.arrayBuffer()
+
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-  }
+
 
   getDuplicateGroups(): LocalDuplicateGroup[] {
     return [...this.duplicateGroups]
-  }
 
-  // Filter and Search
+
+
   filterPhotos(query: string, categoryId?: string): LocalPhoto[] {
     let filtered = [...this.photos]
 
@@ -408,19 +408,19 @@ class LocalPhotoService {
     }
 
     // Filter by category
-    if (categoryId) {
+
       const category = this.categories.find(cat => cat.id === categoryId)
-      if (category) {
+
         filtered = filtered.filter(photo =>
           category.patterns.some(pattern =>
             photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
             (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
           )
-        )
-      }
-    }
 
-    return filtered
+      }
+
+
+
   }
 
   // Utility Methods
@@ -430,9 +430,9 @@ class LocalPhotoService {
 
   formatFileSize(bytes: number): string {
     const units = ['B', 'KB', 'MB', 'GB']
-    let size = bytes
+
     let unitIndex = 0
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024
       unitIndex++
@@ -442,15 +442,15 @@ class LocalPhotoService {
   }
 
   // Check if File System Access API is supported
-  static isFileSystemAccessSupported(): boolean {
+
     return 'showDirectoryPicker' in window
-  }
+
 
   // Cleanup method
   cleanup(): void {
-    this.clearAllPhotos()
+
     this.categories = []
-  }
+
 }
 
 export const localPhotoService = new LocalPhotoService()
