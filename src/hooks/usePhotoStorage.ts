@@ -1,7 +1,7 @@
 import React from 'react'
 import { useKV } from '@github/spark/hooks'
 import { toast } from 'sonner'
-import { localPhotoService, LocalPhoto, LocalCategory, LocalDuplicateGroup, DuplicateDetectionOptions } from '@/services/local'
+import { localPhotoService, LocalPhoto, LocalCategory, LocalDuplicateGroup, DuplicateDetectionOptions, LocalPhotoService } from '@/services/local'
 import { oneDriveService, OneDriveItem, CategoryPattern, DuplicateGroup } from '@/services/onedrive'
 
 type StorageProvider = 'local' | 'onedrive'
@@ -146,7 +146,7 @@ export function usePhotoStorage() {
   const loadLocalPhotos = async (files?: FileList | File[]) => {
     if (!files) {
       try {
-        if (localPhotoService.isFileSystemAccessSupported()) {
+        if (LocalPhotoService.isFileSystemAccessSupported()) {
           const dirHandle = await window.showDirectoryPicker()
           setIsLoadingPhotos(true)
           setProgress({ operation: 'Loading photos from folder...', current: 0, total: 100 })
@@ -423,7 +423,7 @@ export function usePhotoStorage() {
     // Provider management
     currentProvider,
     switchProvider,
-    isFileSystemAccessSupported: localPhotoService.isFileSystemAccessSupported(),
+    isFileSystemAccessSupported: LocalPhotoService.isFileSystemAccessSupported(),
     
     // Authentication (OneDrive)
     isOneDriveAuthenticated: oneDriveService.isAuthenticated(),

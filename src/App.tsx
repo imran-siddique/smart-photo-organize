@@ -221,6 +221,55 @@ function PhotoSorter() {
     }
   }
 
+  const processSelectedDuplicateGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
+    if (selectedDuplicateGroups.length === 0) return
+
+    const photosToDelete: string[] = []
+
+    for (const groupId of selectedDuplicateGroups) {
+      const group = duplicateGroups.find(g => g.id === groupId)
+      if (!group || group.photos.length < 2) continue
+
+      let photoToKeep: UnifiedPhoto
+
+      switch (action) {
+        case 'keep-first':
+          photoToKeep = group.photos[0]
+          break
+        case 'keep-largest':
+          photoToKeep = group.photos.reduce((prev, current) => 
+            prev.size > current.size ? prev : current
+          )
+          break
+        case 'keep-newest':
+          photoToKeep = group.photos.reduce((prev, current) => {
+            const prevTime = typeof prev.lastModified === 'string' 
+              ? new Date(prev.lastModified).getTime()
+              : prev.lastModified
+            const currentTime = typeof current.lastModified === 'string'
+              ? new Date(current.lastModified).getTime()
+              : current.lastModified
+            return prevTime > currentTime ? prev : current
+          })
+          break
+        default:
+          continue
+      }
+
+      const groupPhotosToDelete = group.photos
+        .filter(photo => photo.id !== photoToKeep.id)
+        .map(photo => photo.id)
+      
+      photosToDelete.push(...groupPhotosToDelete)
+    }
+
+    if (photosToDelete.length > 0) {
+      await deletePhotos(photosToDelete)
+      setSelectedDuplicateGroups([])
+      toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups`)
+    }
+  }
+
   // File input handler for local photos
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -631,9 +680,9 @@ function PhotoSorter() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                          {items.filter(item => 
+                          {photos.filter(photo => 
                             category.patterns.some(pattern =>
-                              item.name.toLowerCase().includes(pattern.toLowerCase())
+                              photo.name.toLowerCase().includes(pattern.toLowerCase())
                             )
                           ).length} photos
                         </Badge>

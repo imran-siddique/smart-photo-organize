@@ -1,8 +1,7 @@
 // Local File System Service for Photo Organization
 
-
 export interface LocalPhoto {
-    width: n
+  id: string
   name: string
   size: number
   type: string
@@ -11,17 +10,17 @@ export interface LocalPhoto {
   url: string // Object URL for display
   thumbnailUrl?: string
   folder: string
-  sortOrder: numb
-
-  i
-  similarity: num
+  dimensions?: {
+    width: number
+    height: number
+  }
 }
 
-  checkFilename: boolean
-  similarity
-
-  private photos: Lo
-  private dupli
+export interface LocalCategory {
+  id: string
+  name: string
+  patterns: string[]
+  color: string
   folder: string
   autoSort: boolean
   sortOrder: number
@@ -41,7 +40,7 @@ export interface DuplicateDetectionOptions {
   similarityThreshold: number
 }
 
-class LocalPhotoService {
+export class LocalPhotoService {
   private photos: LocalPhoto[] = []
   private categories: LocalCategory[] = []
   private duplicateGroups: LocalDuplicateGroup[] = []
@@ -56,13 +55,13 @@ class LocalPhotoService {
         const photo = await this.createPhotoFromFile(file)
         if (photo) {
           newPhotos.push(photo)
-      }
+        }
       }
     }
 
     this.photos = [...this.photos, ...newPhotos]
     return newPhotos
-  p
+  }
 
   async loadPhotosFromDirectory(dirHandle: FileSystemDirectoryHandle): Promise<LocalPhoto[]> {
     const newPhotos: LocalPhoto[] = []
@@ -76,7 +75,7 @@ class LocalPhotoService {
             if (photo) {
               newPhotos.push(photo)
             }
-  }
+          }
         } else if (handle.kind === 'directory') {
           // Recursively load from subdirectories
           const subPhotos = await this.loadPhotosFromDirectory(handle)
@@ -84,37 +83,45 @@ class LocalPhotoService {
             ...photo,
             folder: `${name}/${photo.folder || ''}`.replace(/\/$/, '')
           })))
-  }
+        }
       }
-    return file.type.
+    } catch (error) {
       console.error('Error reading directory:', error)
+    }
 
-
-    return [...this.photos]
+    this.photos = [...this.photos, ...newPhotos]
     return newPhotos
   }
 
   private async createPhotoFromFile(file: File, folderPath?: string): Promise<LocalPhoto | null> {
     try {
-    
+      const id = this.generateId()
       const url = URL.createObjectURL(file)
       const dimensions = await this.getImageDimensions(file)
       
-        if (ph
+      const photo: LocalPhoto = {
         id,
         name: file.name,
         size: file.size,
-  }
+        type: file.type,
         lastModified: file.lastModified,
-    // Revoke
+        file,
         url,
-      if (photo.thu
-        folder: folderPath || ''
-    })
+        folder: folderPath || '',
+        dimensions
+      }
+
+      // Create thumbnail
+      const thumbnailUrl = await this.createThumbnail(file)
+      if (thumbnailUrl) {
+        photo.thumbnailUrl = thumbnailUrl
+      }
+
+      return photo
     } catch (error) {
       console.error('Error creating photo from file:', error)
       return null
-  // 
+    }
   }
 
   private async getImageDimensions(file: File): Promise<{ width: number; height: number } | undefined> {
@@ -122,17 +129,58 @@ class LocalPhotoService {
       const img = new Image()
       img.onload = () => {
         resolve({ width: img.naturalWidth, height: img.naturalHeight })
-    return newCategory
+        URL.revokeObjectURL(img.src)
       }
-      img.onerror = () => resolve(undefined)
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src)
+        resolve(undefined)
+      }
       img.src = URL.createObjectURL(file)
     })
   }
 
+  private async createThumbnail(file: File): Promise<string | null> {
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return null
+
+      const img = new Image()
+      return new Promise((resolve) => {
+        img.onload = () => {
+          const maxSize = 200
+          const ratio = Math.min(maxSize / img.naturalWidth, maxSize / img.naturalHeight)
+          
+          canvas.width = img.naturalWidth * ratio
+          canvas.height = img.naturalHeight * ratio
+          
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(URL.createObjectURL(blob))
+            } else {
+              resolve(null)
+            }
+            URL.revokeObjectURL(img.src)
+          }, 'image/jpeg', 0.8)
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(img.src)
+          resolve(null)
+        }
+        img.src = URL.createObjectURL(file)
+      })
+    } catch (error) {
+      console.error('Error creating thumbnail:', error)
+      return null
+    }
+  }
+
   private isImageFile(file: File): boolean {
-    const index = this.categories.findIndex(c
+    return file.type.startsWith('image/') &&
            /\.(jpg|jpeg|png|gif|bmp|webp|tiff|tif)$/i.test(file.name)
-   
+  }
 
   // Photo Management
   getPhotos(): LocalPhoto[] {
@@ -146,7 +194,7 @@ class LocalPhotoService {
   deletePhotos(photoIds: string[]): void {
     const idsToDelete = new Set(photoIds)
     
-    const category = this.categories.find(cat => 
+    // Clean up object URLs
     this.photos
       .filter(photo => idsToDelete.has(photo.id))
       .forEach(photo => {
@@ -154,23 +202,23 @@ class LocalPhotoService {
         if (photo.thumbnailUrl) {
           URL.revokeObjectURL(photo.thumbnailUrl)
         }
-  async 
+      })
 
     this.photos = this.photos.filter(photo => !idsToDelete.has(photo.id))
   }
 
   clearAllPhotos(): void {
-      const reasons: string[]
+    // Clean up all object URLs
     this.photos.forEach(photo => {
-        const photo2 = this.photos[j
+      URL.revokeObjectURL(photo.url)
       if (photo.thumbnailUrl) {
         URL.revokeObjectURL(photo.thumbnailUrl)
       }
-      
+    })
     
     this.photos = []
     this.duplicateGroups = []
-   
+  }
 
   // Category Management
   getCategories(): LocalCategory[] {
@@ -210,7 +258,7 @@ class LocalPhotoService {
         category.autoSort && category.patterns.some(pattern =>
           photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
           (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
-      con
+        )
       )
 
       if (matchingCategory) {
@@ -228,7 +276,7 @@ class LocalPhotoService {
         photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
         (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
       )
-
+    )
   }
 
   // Duplicate Detection
@@ -236,7 +284,7 @@ class LocalPhotoService {
     const groups: LocalDuplicateGroup[] = []
     const processedIds = new Set<string>()
 
-    const shorter = n1.length > n2.length ? n2 : n
+    for (let i = 0; i < this.photos.length; i++) {
       const photo1 = this.photos[i]
       if (processedIds.has(photo1.id)) continue
 
@@ -244,15 +292,16 @@ class LocalPhotoService {
       const reasons: string[] = []
 
       for (let j = i + 1; j < this.photos.length; j++) {
-    for (let j = 0; j <= str2.length;
+        const photo2 = this.photos[j]
         if (processedIds.has(photo2.id)) continue
 
         const similarity = await this.calculateSimilarity(photo1, photo2, options)
         
         if (similarity.score >= options.similarityThreshold) {
-        )
+          duplicates.push(photo2)
+          processedIds.add(photo2.id)
           reasons.push(...similarity.reasons)
-    
+        }
       }
 
       if (duplicates.length > 1) {
@@ -260,27 +309,27 @@ class LocalPhotoService {
           id: this.generateId(),
           photos: duplicates,
           similarity: await this.calculateGroupSimilarity(duplicates, options),
-    return [...this.duplicateGroups]
+          reason: [...new Set(reasons)] // Remove duplicates
         }
-  // Fil
+        
         groups.push(group)
-
+        duplicates.forEach(photo => processedIds.add(photo.id))
       }
     }
 
     this.duplicateGroups = groups
     return groups
-
+  }
 
   private async calculateSimilarity(
     photo1: LocalPhoto, 
-          category.patte
+    photo2: LocalPhoto,
     options: DuplicateDetectionOptions
   ): Promise<{ score: number; reasons: string[] }> {
     let score = 0
     const reasons: string[] = []
 
-  }
+    // File size comparison
     if (options.checkFileSize) {
       const sizeDiff = Math.abs(photo1.size - photo2.size) / Math.max(photo1.size, photo2.size)
       if (sizeDiff < 0.1) {
@@ -290,31 +339,31 @@ class LocalPhotoService {
     }
 
     // Filename comparison  
-    }
+    if (options.checkFilename) {
       const nameSimilarity = this.calculateNameSimilarity(photo1.name, photo2.name)
       if (nameSimilarity > 0.7) {
         score += 40
-  static isFileSystemAccessSupported(): 
+        reasons.push('Similar filename')
       }
+    }
 
-
-    this.clearAllPhotos()
+    // Hash comparison
     if (options.checkHash) {
-}
+      try {
         const hash1 = await this.calculateFileHash(photo1.file)
         const hash2 = await this.calculateFileHash(photo2.file)
         
-
+        if (hash1 === hash2) {
           score += 50
-
+          reasons.push('Identical content')
         }
       } catch (error) {
         console.warn('Hash calculation failed:', error)
-
+      }
     }
 
     // Dimension comparison
-
+    if (photo1.dimensions && photo2.dimensions) {
       const widthDiff = Math.abs(photo1.dimensions.width - photo2.dimensions.width)
       const heightDiff = Math.abs(photo1.dimensions.height - photo2.dimensions.height)
       
@@ -322,13 +371,13 @@ class LocalPhotoService {
         score += 20
         reasons.push('Same dimensions')
       } else if (widthDiff < 10 && heightDiff < 10) {
-
+        score += 10
         reasons.push('Similar dimensions')
-
+      }
     }
 
     return { score: Math.min(100, score), reasons }
-
+  }
 
   private async calculateGroupSimilarity(photos: LocalPhoto[], options: DuplicateDetectionOptions): Promise<number> {
     if (photos.length < 2) return 0
@@ -340,7 +389,7 @@ class LocalPhotoService {
       for (let j = i + 1; j < photos.length; j++) {
         const similarity = await this.calculateSimilarity(photos[i], photos[j], options)
         totalScore += similarity.score
-
+        comparisons++
       }
     }
 
@@ -350,7 +399,7 @@ class LocalPhotoService {
   private calculateNameSimilarity(name1: string, name2: string): number {
     const normalize = (str: string) => str.toLowerCase().replace(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|tif)$/i, '')
     const n1 = normalize(name1)
-
+    const n2 = normalize(name2)
 
     if (n1 === n2) return 1
 
@@ -376,25 +425,25 @@ class LocalPhotoService {
           matrix[j][i - 1] + 1,
           matrix[j - 1][i] + 1,
           matrix[j - 1][i - 1] + indicator
-
+        )
       }
-
+    }
     
     return matrix[str2.length][str1.length]
   }
 
   private async calculateFileHash(file: File): Promise<string> {
-
+    const buffer = await file.arrayBuffer()
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
+  }
 
   getDuplicateGroups(): LocalDuplicateGroup[] {
     return [...this.duplicateGroups]
+  }
 
-
-
+  // Filtering
   filterPhotos(query: string, categoryId?: string): LocalPhoto[] {
     let filtered = [...this.photos]
 
@@ -408,19 +457,19 @@ class LocalPhotoService {
     }
 
     // Filter by category
-
+    if (categoryId) {
       const category = this.categories.find(cat => cat.id === categoryId)
-
+      if (category) {
         filtered = filtered.filter(photo =>
           category.patterns.some(pattern =>
             photo.name.toLowerCase().includes(pattern.toLowerCase()) ||
             (photo.folder && photo.folder.toLowerCase().includes(pattern.toLowerCase()))
           )
-
+        )
       }
+    }
 
-
-
+    return filtered
   }
 
   // Utility Methods
@@ -430,7 +479,7 @@ class LocalPhotoService {
 
   formatFileSize(bytes: number): string {
     const units = ['B', 'KB', 'MB', 'GB']
-
+    let size = bytes
     let unitIndex = 0
 
     while (size >= 1024 && unitIndex < units.length - 1) {
@@ -442,15 +491,16 @@ class LocalPhotoService {
   }
 
   // Check if File System Access API is supported
-
+  static isFileSystemAccessSupported(): boolean {
     return 'showDirectoryPicker' in window
-
+  }
 
   // Cleanup method
   cleanup(): void {
-
+    this.clearAllPhotos()
     this.categories = []
-
+    this.duplicateGroups = []
+  }
 }
 
 export const localPhotoService = new LocalPhotoService()
