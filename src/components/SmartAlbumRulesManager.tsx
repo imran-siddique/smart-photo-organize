@@ -165,8 +165,6 @@ export function SmartAlbumRulesManager({
             )}
           </TabsTrigger>
           <TabsTrigger value="predefined">Predefined</TabsTrigger>
-                  </
-              
               <div className="space-y-2">Name="space-y-4">
                   {rule.descrirm */}
                 
