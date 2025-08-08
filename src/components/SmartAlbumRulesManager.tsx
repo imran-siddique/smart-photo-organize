@@ -14,14 +14,13 @@ import {
   Check,
   X,
   Lightbulb,
-  Sparkles,
+  Sparkle,
   Star,
   Image,
   Calendar,
   MapPin,
   Tag,
   Plus,
-  Edit,
   Trash
 } from '@phosphor-icons/react'
 
@@ -360,7 +359,6 @@ export function SmartAlbumRulesManager({
                           size="sm"
                           onClick={() => handleEditRule(rule)}
                         >
-                          <Edit size={16} />
                         </Button>
                         <Button
                           variant="outline"
@@ -415,7 +413,7 @@ export function SmartAlbumRulesManager({
                         <div>
                           <h3 className="font-medium flex items-center gap-2">
                             {rule.name}
-                            <Sparkles size={16} className="text-primary" />
+                            <Sparkle size={16} className="text-primary" />
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             {ruleTypeOptions.find(opt => opt.value === rule.type)?.label}
