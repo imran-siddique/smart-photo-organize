@@ -1,18 +1,10 @@
 import React from 'react'
-import { SmartAlbumRule } from '@/services/smartAlbums'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Plus,
-  Trash,
-  Edit,
   Check,
   X,
   Lightbulb,
@@ -173,144 +165,144 @@ export function SmartAlbumRulesManager({
             )}
           </TabsTrigger>
           <TabsTrigger value="predefined">Predefined</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="custom" className="space-y-4">
-          {/* Rule Creation Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+                  </
+              
+              <div className="space-y-2">Name="space-y-4">
+                  {rule.descrirm */}
+                
+                  <div className="text-xs
+                  </div> className="flex items-center gap-2">
                 <Plus />
-                {editingRule ? 'Edit Rule' : 'Create New Rule'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rule-name">Rule Name</Label>
+                  <span>Auto-update: {rule.: 'Create New Rule'}
+                    Title>
+                     der>
+                  )}tent className="space-y-4">
+              </div>lassName="grid grid-cols-1 md:grid-cols-2 gap-4">
+          </div><div className="space-y-2">
+      </Card>     <Label htmlFor="rule-name">Rule Name</Label>
+  }               <Input
+  return (          id="rule-name"
+      <div className="flex items-center jle name"
+          <h2 className="text-2xl font-semibold flex items-center gap-2
+            Smart Album Rules{(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+          <p className="text-mut
+          </p>  </div>
+        
+          <Button varianssName="space-y-2">
+            Get Su<Label htmlFor="rule-description">Description</Label>
                   <Input
-                    id="rule-name"
-                    placeholder="Enter rule name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="rule-description">Description</Label>
-                  <Input
-                    id="rule-description"
+            <Dialo  id="rule-description"
                     placeholder="Enter rule description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="rule-type">Rule Type</Label>
-                  <Select 
+              </Button>ue={formData.description}
+            <DialogContent>e={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                <DialogTitle>Create Smart Album Rule</Dia
+                  Define a
+              </DialogHeader>
+              <div className="space-e-y-2">
+                  <Label htmlFor="name">Name</Label>pe</Label>
+                    id="name"
                     value={formData.type} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as SmartAlbumRule['type'] }))}
+                  />onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as SmartAlbumRule['type'] }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ruleTypeOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                  <Label htTrigger>
+                    id="descrialue />
+                    onChange={(e) =>
+                    rows={3}ontent>
+                </div>{ruleTypeOptions.map(option => (
+                <di     <SelectItem key={option.value} value={option.value}>
+                  <Select value={formData.typ
+                      <SeleelectItem>
+                    <S))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
+                          </div>
+                      ))}
+                  </Select>ame="space-y-2">
                   <Label htmlFor="rule-icon">Icon</Label>
-                  <Select 
-                    value={formData.icon} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, icon: value }))}
-                  >
-                    <SelectTrigger>
+                  <div>ct 
+                    <Select value={formDat
+                     nValueChange={(value) => setFormData(prev => ({ ...prev, icon: value }))}
+                      <SelectContent>
+                          <Seigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      {iconOptions.map(option => {
-                        const IconComponent = option.component
-                        return (
-                          <SelectItem key={option.value} value={option.value}>
+                              {col>
+                          <Options.map(option => {
+                      </SelectContent>onent = option.component
+                  </div>return (
+                  <div    <SelectItem key={option.value} value={option.value}>
                             <div className="flex items-center gap-2">
                               <IconComponent size={16} />
-                              {option.value}
-                            </div>
+                      <SelectConption.value}
+                          <S</div>
                           </SelectItem>
-                        )
-                      })}
+                      </SelectContent>
+                  </div>}
                     </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Color</Label>
+                  <dielect>
+                      <Switch
+                        check
+                     className="space-y-2 md:col-span-2">
+                   Label>Color</Label>
                   <div className="flex gap-2">
                     {colorOptions.map(color => (
                       <button
                         key={color}
                         type="button"
                         className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          formData.color === color ? 'border-foreground scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setFormData(prev => ({ ...prev, color }))}
-                      />
-                    ))}
+                  <Button variant="oulor === color ? 'border-foreground scale-110' : 'border-transparent'
+                  </Button}
+                    Create Rule{ backgroundColor: color }}
+                </div   onClick={() => setFormData(prev => ({ ...prev, color }))}
+            </DialogContent>
+        </div>      ))}
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="rule-enabled"
+        <TabsList>div>
+            Predefined ({predefinedRules.length})
+          <TabsTrigger value="custom">
+          </TabsTrigger>Name="space-y-3">
+            <TabsTri className="flex items-center space-x-2">
+              <div clatch
+          )}        id="rule-enabled"
                     checked={formData.enabled}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enabled: checked }))}
-                  />
-                  <Label htmlFor="rule-enabled">Enable this rule</Label>
+          <Alert>   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enabled: checked }))}
+            <AlertDescription>
+            </AlertDescription>r="rule-enabled">Enable this rule</Label>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="auto-update"
-                    checked={formData.autoUpdate}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, autoUpdate: checked }))}
-                  />
-                  <Label htmlFor="auto-update">Auto-update album contents</Label>
+            {predefinedRules.map((rule)
+        </TabsContent>lassName="flex items-center space-x-2">
+        <TabsContent value="custom" c
+            <Card className="p-12 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 f
+                </div>CheckedChange={(checked) => setFormData(prev => ({ ...prev, autoUpdate: checked }))}
+                  <h3 className="text-l
+                    Create mlFor="auto-update">Auto-update album contents</Label>
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={editingRule ? handleUpdateRule : handleCreateRule}
-                  disabled={!formData.name.trim()}
-                >
-                  {editingRule ? 'Update Rule' : 'Create Rule'}
+                  <Plus class
+                </Button
+            </Card className="flex gap-2">
+            <div classN 
+            </div>onClick={editingRule ? handleUpdateRule : handleCreateRule}
+        </TabsContent>bled={!formData.name.trim()}
+        <TabsContent value="suggested
+            <Card className="p-12 text-e Rule' : 'Create Rule'}
+                <div className="mx-aut
+                </div>ngRule && (
+                  <h3 className="text-lg font-medium">esetForm}>
+                    We'll analyze your photo collection and sugg
+                </div>tton>
+                  <Lightbulb classN
                 </Button>
-                {editingRule && (
-                  <Button variant="outline" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Custom Rules List */}
-          <div className="space-y-3">
-            {customRules.map(rule => {
-              const IconComponent = getIconComponent(rule.icon || 'Image')
-              return (
-                <Card key={rule.id}>
-                  <CardContent className="p-4">
+            </Card>ontent>
+            <div className="spac
+                <Lightbulb className=
+                  These rules are }
+              </Alert>me="space-y-3">
+              <div classNamp(rule => {
+              </div>IconComponent = getIconComponent(rule.icon || 'Image')
+          )}  return (
+      </Tabs>   <Card key={rule.id}>
+  )               <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div 
@@ -448,6 +440,173 @@ export function SmartAlbumRulesManager({
                       className="w-10 h-10 rounded-lg flex items-center justify-center"
                       style={{ backgroundColor: rule.color || colorOptions[0] }}
                     >
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       <IconComponent size={20} className="text-white" />
                     </div>
                     <div>
