@@ -408,8 +408,10 @@ export function usePhotoStorage() {
   }
 
   const filterPhotos = (query: string, categoryId?: string) => {
+    const effectiveCategoryId = categoryId === 'all' ? undefined : categoryId
+    
     if (currentProvider === 'local') {
-      const filtered = localPhotoService.filterPhotos(query, categoryId)
+      const filtered = localPhotoService.filterPhotos(query, effectiveCategoryId)
       setFilteredPhotos(filtered.map(convertLocalToUnified))
     } else {
       let filtered = [...oneDrivePhotos]
@@ -421,8 +423,8 @@ export function usePhotoStorage() {
         )
       }
       
-      if (categoryId) {
-        const category = (oneDriveCategories || []).find(cat => cat.id === categoryId)
+      if (effectiveCategoryId) {
+        const category = (oneDriveCategories || []).find(cat => cat.id === effectiveCategoryId)
         if (category) {
           filtered = filtered.filter(photo =>
             category.patterns.some(pattern =>

@@ -59,7 +59,7 @@ function PhotoSorter() {
   const [editingCategory, setEditingCategory] = React.useState<UnifiedCategory | null>(null)
   const [isEditCategoryOpen, setIsEditCategoryOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('')
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('all')
   const [sortBy, setSortBy] = React.useState<'name' | 'date' | 'size'>('name')
   const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc')
   const [showProviderSelection, setShowProviderSelection] = React.useState(!currentProvider || currentProvider === 'local')
@@ -842,7 +842,7 @@ function PhotoSorter() {
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All categories</SelectItem>
+                  <SelectItem value="all">All categories</SelectItem>
                   {categories.map(category => (
                     <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center gap-2">
