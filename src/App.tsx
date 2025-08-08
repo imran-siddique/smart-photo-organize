@@ -1,5 +1,6 @@
 import React from 'react'
 import { usePhotoStorage, UnifiedPhoto, UnifiedCategory } from '@/hooks/usePhotoStorage'
+import { useSmartAlbums } from '@/hooks/useSmartAlbums'
 import { TestingPanel } from '@/components/TestingPanel'
 import { TestDocumentation } from '@/components/TestDocumentation'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -16,6 +17,8 @@ import { DuplicatesReview } from '@/components/DuplicatesReview'
 import { PhotoComparison } from '@/components/PhotoComparison'
 import { ActionButtons } from '@/components/ActionButtons'
 import { EmptyState } from '@/components/EmptyState'
+import { SmartAlbumsGrid } from '@/components/SmartAlbumsGrid'
+import { SmartAlbumRulesManager } from '@/components/SmartAlbumRulesManager'
 import { localPhotoService } from '@/services/local'
 import { log } from '@/lib/logger'
 import { sanitizeTextInput, sanitizeColor, sanitizeFiles, rateLimiter } from '@/lib/sanitizer'
@@ -53,6 +56,23 @@ function PhotoSorter() {
     setError
   } = usePhotoStorage()
 
+  // Smart Albums hook
+  const {
+    albums,
+    customRules,
+    suggestedRules,
+    predefinedRules,
+    statistics: smartAlbumStats,
+    isGenerating: isGeneratingSmartAlbums,
+    generateSmartAlbums,
+    generateSuggestedRules,
+    acceptSuggestedRule,
+    rejectSuggestedRule,
+    createCustomRule,
+    updateCustomRule,
+    deleteCustomRule
+  } = useSmartAlbums(photos)
+
   // State for UI components
   const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -61,6 +81,8 @@ function PhotoSorter() {
   const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc')
   const [showProviderSelection, setShowProviderSelection] = React.useState(!currentProvider || currentProvider === 'local')
   const [showTestingPanel, setShowTestingPanel] = React.useState(false)
+  const [showSmartAlbums, setShowSmartAlbums] = React.useState(false)
+  const [showSmartAlbumRules, setShowSmartAlbumRules] = React.useState(false)
 
   // Duplicate detection state
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
@@ -465,8 +487,13 @@ function PhotoSorter() {
           currentProvider={currentProvider}
           oneDriveUser={oneDriveUser}
           showTestingPanel={showTestingPanel}
+          showSmartAlbums={showSmartAlbums}
           onSwitchProvider={() => setShowProviderSelection(true)}
           onToggleTestingPanel={() => setShowTestingPanel(!showTestingPanel)}
+          onToggleSmartAlbums={() => {
+            setShowSmartAlbums(!showSmartAlbums)
+            setShowSmartAlbumRules(false)
+          }}
           onLogout={logoutOneDrive}
         />
 
@@ -503,29 +530,63 @@ function PhotoSorter() {
           </div>
         )}
 
+        {/* Smart Albums Section */}
+        {showSmartAlbums && !showSmartAlbumRules && (
+          <SmartAlbumsGrid
+            albums={albums}
+            isGenerating={isGeneratingSmartAlbums}
+            statistics={smartAlbumStats}
+            onViewAlbum={(album) => {
+              log.info('Viewing smart album', { albumName: album.name, photoCount: album.photoCount })
+              toast.info(`Viewing "${album.name}" with ${album.photoCount} photos`)
+            }}
+            onGenerateAlbums={() => generateSmartAlbums(true)}
+            onManageRules={() => setShowSmartAlbumRules(true)}
+          />
+        )}
+
+        {/* Smart Album Rules Manager */}
+        {showSmartAlbums && showSmartAlbumRules && (
+          <SmartAlbumRulesManager
+            predefinedRules={predefinedRules}
+            customRules={customRules}
+            suggestedRules={suggestedRules}
+            onCreateRule={createCustomRule}
+            onUpdateRule={updateCustomRule}
+            onDeleteRule={deleteCustomRule}
+            onAcceptSuggestion={acceptSuggestedRule}
+            onRejectSuggestion={rejectSuggestedRule}
+            onGenerateSuggestions={generateSuggestedRules}
+          />
+        )}
+
         {/* Categories Grid */}
-        <CategoriesGrid
-          categories={categories}
-          photos={photos}
-          selectedItemsCount={selectedItems.length}
-          onCreateCategory={handleCreateCategory}
-          onUpdateCategory={handleUpdateCategory}
-          onDeleteCategory={handleDeleteCategory}
-        />
+        {!showSmartAlbums && (
+          <CategoriesGrid
+            categories={categories}
+            photos={photos}
+            selectedItemsCount={selectedItems.length}
+            onCreateCategory={handleCreateCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+          />
+        )}
 
         {/* Photo Loader */}
-        <PhotoLoader
-          currentProvider={currentProvider}
-          photos={photos}
-          filteredPhotos={filteredPhotos}
-          isLoadingPhotos={isLoadingPhotos}
-          isFileSystemAccessSupported={isFileSystemAccessSupported}
-          onLoadPhotos={loadPhotos}
-          onFileSelect={handleFileSelect}
-        />
+        {!showSmartAlbums && (
+          <PhotoLoader
+            currentProvider={currentProvider}
+            photos={photos}
+            filteredPhotos={filteredPhotos}
+            isLoadingPhotos={isLoadingPhotos}
+            isFileSystemAccessSupported={isFileSystemAccessSupported}
+            onLoadPhotos={loadPhotos}
+            onFileSelect={handleFileSelect}
+          />
+        )}
 
         {/* Photos Grid */}
-        {sortedPhotos.length > 0 && (
+        {!showSmartAlbums && sortedPhotos.length > 0 && (
           <PhotosGrid
             photos={sortedPhotos}
             selectedItems={selectedItems}
@@ -538,20 +599,22 @@ function PhotoSorter() {
         )}
 
         {/* Duplicates Review */}
-        <DuplicatesReview
-          duplicateGroups={duplicateGroups}
-          selectedDuplicateGroups={selectedDuplicateGroups}
-          isDuplicateDetectionRunning={isDuplicateDetectionRunning}
-          detectionSettings={detectionSettings}
-          onDetectionSettingsChange={setDetectionSettings}
-          onToggleGroupSelection={handleToggleDuplicateGroupSelection}
-          onComparePhotos={handleComparePhotosInGroup}
-          onKeepPhoto={handleKeepPhotoInGroup}
-          onDeletePhoto={deletePhotos}
-          onRunDetection={handleRunDuplicateDetection}
-          onProcessSelectedGroups={handleProcessSelectedDuplicateGroups}
-          formatFileSize={formatFileSize}
-        />
+        {!showSmartAlbums && (
+          <DuplicatesReview
+            duplicateGroups={duplicateGroups}
+            selectedDuplicateGroups={selectedDuplicateGroups}
+            isDuplicateDetectionRunning={isDuplicateDetectionRunning}
+            detectionSettings={detectionSettings}
+            onDetectionSettingsChange={setDetectionSettings}
+            onToggleGroupSelection={handleToggleDuplicateGroupSelection}
+            onComparePhotos={handleComparePhotosInGroup}
+            onKeepPhoto={handleKeepPhotoInGroup}
+            onDeletePhoto={deletePhotos}
+            onRunDetection={handleRunDuplicateDetection}
+            onProcessSelectedGroups={handleProcessSelectedDuplicateGroups}
+            formatFileSize={formatFileSize}
+          />
+        )}
 
         {/* Photo Comparison Dialog */}
         <PhotoComparison
@@ -564,16 +627,18 @@ function PhotoSorter() {
         />
 
         {/* Action Buttons */}
-        <ActionButtons
-          currentProvider={currentProvider}
-          photosCount={photos.length}
-          isDuplicateDetectionRunning={isDuplicateDetectionRunning}
-          onLoadPhotos={loadPhotos}
-          onOpenDuplicateDetection={() => setDuplicateDetectionOpen(true)}
-        />
+        {!showSmartAlbums && (
+          <ActionButtons
+            currentProvider={currentProvider}
+            photosCount={photos.length}
+            isDuplicateDetectionRunning={isDuplicateDetectionRunning}
+            onLoadPhotos={loadPhotos}
+            onOpenDuplicateDetection={() => setDuplicateDetectionOpen(true)}
+          />
+        )}
 
         {/* Empty State */}
-        {photos.length === 0 && !isLoadingPhotos && (
+        {!showSmartAlbums && photos.length === 0 && !isLoadingPhotos && (
           <EmptyState
             currentProvider={currentProvider}
             isFileSystemAccessSupported={isFileSystemAccessSupported}

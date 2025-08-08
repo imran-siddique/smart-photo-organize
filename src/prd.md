@@ -1,21 +1,23 @@
 # Photo Sorter - Product Requirements Document
 
 ## Core Purpose & Success
-- **Mission Statement**: Provide a professional-grade photo organization tool with AI-powered duplicate detection and intelligent categorization, built with modular architecture for maintainability and scalability.
+- **Mission Statement**: Provide a professional-grade photo organization tool with AI-powered smart albums, duplicate detection, and intelligent categorization, built with modular architecture for maintainability and scalability.
 - **Success Indicators**: 
   - Clean separation of concerns with reusable components
+  - AI-powered photo organization that learns from user patterns
   - Easy to extend and maintain codebase
   - Enhanced developer experience with type-safe interfaces
   - Production-ready performance and reliability
-- **Experience Qualities**: Professional, Modular, Maintainable
+- **Experience Qualities**: Professional, Intelligent, Modular, Maintainable
 
 ## Project Classification & Approach
-- **Complexity Level**: Complex Application (advanced functionality with modular architecture)
-- **Primary User Activity**: Creating and Managing (photo organization with multiple provider support)
+- **Complexity Level**: Complex Application (advanced AI functionality with modular architecture)
+- **Primary User Activity**: Creating and Managing (photo organization with AI assistance and multiple provider support)
 - **Architecture**: Modular component-based design with clear separation of concerns
 
 ## Key Architecture Improvements
 - **Component Modularity**: Split monolithic App.tsx into focused, reusable components
+- **AI Integration**: Smart albums service with content analysis and pattern recognition
 - **Clear Interfaces**: Each component has well-defined props interfaces
 - **Separation of Concerns**: UI components separated from business logic
 - **Reusability**: Components designed to be easily extended and reused
@@ -23,10 +25,19 @@
 
 ## Essential Features & Components
 
+### AI-Powered Smart Albums
+- **SmartAlbumsGrid**: Display AI-generated smart albums with statistics
+- **SmartAlbumRulesManager**: Create and manage custom smart album rules
+- Content-based analysis (people, nature, architecture, events)
+- Metadata-based organization (size, date, quality)
+- Pattern recognition for filename and folder structures
+- Suggested rules based on photo collection patterns
+- Auto-updating albums when new photos are added
+
 ### Core UI Components
 - **ProviderSelection**: Handle local/OneDrive provider choice with file input
 - **OneDriveAuth**: Manage Microsoft authentication flow
-- **AppHeader**: Application header with user info and navigation
+- **AppHeader**: Application header with user info, navigation, and smart albums toggle
 - **ProgressBar**: Visual progress indication for operations
 - **SearchAndFilter**: Photo search, category filtering, and sorting controls
 
