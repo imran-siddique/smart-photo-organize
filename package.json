@@ -7,9 +7,16 @@
         "dev": "vite",
         "kill": "fuser -k 5000/tcp",
         "build": "tsc -b --noCheck && vite build",
+        "build:production": "NODE_ENV=production npm run build",
         "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "type-check": "tsc --noEmit",
+        "test": "echo \"Tests would go here\"",
         "optimize": "vite optimize",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "analyze": "npm run build && npx vite-bundle-analyzer",
+        "clean": "rm -rf dist node_modules/.vite",
+        "prepare": "npm run type-check && npm run lint"
     },
     "dependencies": {
         "@github/spark": "^0.0.1",

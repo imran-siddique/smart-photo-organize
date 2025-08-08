@@ -17,7 +17,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePhotoStorage, UnifiedPhoto, UnifiedCategory, TestResult } from '@/hooks/usePhotoStorage'
 import { TestingPanel } from '@/components/TestingPanel'
 import { TestDocumentation } from '@/components/TestDocumentation'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { LoadingState } from '@/components/LoadingState'
 import { localPhotoService } from '@/services/local'
+import { config } from '@/lib/config'
+import { log } from '@/lib/logger'
+import { sanitizeTextInput, sanitizeColor, sanitizeSearchQuery, sanitizeFiles, rateLimiter } from '@/lib/sanitizer'
 import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
@@ -77,49 +82,73 @@ function PhotoSorter() {
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
   const [showTestingPanel, setShowTestingPanel] = React.useState(false)
 
-  // Get statistics for testing
+  // Get statistics for testing with memoization
   const fileTypeStats = React.useMemo(() => {
-    if (currentProvider === 'local') {
+    if (currentProvider === 'local' && photos.length > 0) {
       return localPhotoService.getFileTypeStatistics()
     }
     return {}
-  }, [photos, currentProvider])
+  }, [photos.length, currentProvider])
 
   const folderStats = React.useMemo(() => {
-    if (currentProvider === 'local') {
+    if (currentProvider === 'local' && photos.length > 0) {
       return localPhotoService.getFolderStatistics()
     }
     return {}
-  }, [photos, currentProvider])
+  }, [photos.length, currentProvider])
 
-  // Handle auth callback for OneDrive
+  // Handle auth callback for OneDrive with error handling
   React.useEffect(() => {
     if (currentProvider !== 'onedrive') return
     
     const hash = window.location.hash
     
     if (hash && hash.includes('access_token')) {
+      log.info('Processing OneDrive authentication callback')
       handleOneDriveCallback(hash).then(success => {
         if (success) {
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname)
+          log.info('OneDrive authentication successful')
         }
+      }).catch(error => {
+        log.error('OneDrive authentication error', {}, error as Error)
+        toast.error('Failed to authenticate with OneDrive')
+        setError('Authentication failed. Please try again.')
       })
     } else if (hash && hash.includes('error')) {
       // Handle OAuth errors
       const params = new URLSearchParams(hash.replace('#', ''))
       const error = params.get('error')
       const errorDescription = params.get('error_description')
-      console.error('OAuth error:', error, errorDescription)
+      
+      log.error('OAuth error', { error, errorDescription })
+      
+      // User-friendly error messages
+      let errorMessage = 'Authentication failed'
+      if (error === 'access_denied') {
+        errorMessage = 'Access was denied. Please try again and grant the necessary permissions.'
+      } else if (errorDescription) {
+        errorMessage = errorDescription
+      }
+      
+      toast.error(errorMessage)
+      setError(errorMessage)
+      
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [handleOneDriveCallback, currentProvider])
+  }, [handleOneDriveCallback, currentProvider, setError])
 
-  // Filter and sort photos
+  // Filter and sort photos with error handling
   React.useEffect(() => {
-    filterPhotos(searchQuery, selectedCategoryFilter)
-  }, [searchQuery, selectedCategoryFilter, photos])
+    try {
+      filterPhotos(searchQuery, selectedCategoryFilter)
+    } catch (error) {
+      console.error('Error filtering photos:', error)
+      toast.error('Failed to filter photos')
+    }
+  }, [searchQuery, selectedCategoryFilter, photos, filterPhotos])
 
   const sortedPhotos = React.useMemo(() => {
     const sorted = [...filteredPhotos]
@@ -151,50 +180,88 @@ function PhotoSorter() {
     return sorted
   }, [filteredPhotos, sortBy, sortOrder])
 
-  const toggleItemSelection = (itemId: string) => {
+  // Memoized callbacks to prevent unnecessary re-renders
+  const toggleItemSelection = React.useCallback((itemId: string) => {
     setSelectedItems(current => 
       current.includes(itemId)
         ? current.filter(id => id !== itemId)
         : [...current, itemId]
     )
-  }
+  }, [])
 
-  const selectAllItems = () => {
+  const selectAllItems = React.useCallback(() => {
     setSelectedItems(sortedPhotos.map(photo => photo.id))
-  }
+  }, [sortedPhotos])
 
-  const deselectAllItems = () => {
+  const deselectAllItems = React.useCallback(() => {
     setSelectedItems([])
-  }
+  }, [])
 
   const createNewCategory = async () => {
-    if (!newCategoryName.trim()) return
+    const trimmedName = sanitizeTextInput(newCategoryName, 100)
+    if (!trimmedName) {
+      toast.error('Category name cannot be empty')
+      return
+    }
+
+    // Check for duplicate names
+    if (categories.some(cat => cat.name.toLowerCase() === trimmedName.toLowerCase())) {
+      toast.error('A category with this name already exists')
+      return
+    }
+
+    // Rate limiting
+    if (rateLimiter.isRateLimited('create-category', 5, 60000)) {
+      toast.error('Too many category creation requests. Please wait a moment.')
+      return
+    }
     
-    const patterns = newCategoryPatterns
-      .split(',')
-      .map(p => p.trim())
-      .filter(p => p.length > 0)
-    
-    await createCategory({
-      name: newCategoryName.trim(),
-      patterns: patterns.length > 0 ? patterns : [newCategoryName.trim().toLowerCase()],
-      folder: newCategoryName.trim(),
-      color: newCategoryColor,
-      autoSort: true,
-      sortOrder: categories.length + 1
-    })
-    
-    // Reset form
-    setNewCategoryName('')
-    setNewCategoryPatterns('')
-    setNewCategoryColor('#3b82f6')
-    setIsCreateCategoryOpen(false)
+    try {
+      log.info('Creating new category', { name: trimmedName })
+      
+      const rawPatterns = newCategoryPatterns
+        .split(',')
+        .map(p => sanitizeTextInput(p.trim(), 50))
+        .filter(p => p.length > 0)
+        .slice(0, config.security.maxPatterns)
+      
+      const patterns = rawPatterns.length > 0 ? rawPatterns : [trimmedName.toLowerCase()]
+      const sanitizedColor = sanitizeColor(newCategoryColor)
+      
+      await createCategory({
+        name: trimmedName,
+        patterns,
+        folder: trimmedName,
+        color: sanitizedColor,
+        autoSort: true,
+        sortOrder: categories.length + 1
+      })
+      
+      // Reset form
+      setNewCategoryName('')
+      setNewCategoryPatterns('')
+      setNewCategoryColor('#3b82f6')
+      setIsCreateCategoryOpen(false)
+      
+      log.info('Category created successfully', { name: trimmedName, patterns })
+      toast.success(`Category "${trimmedName}" created successfully`)
+    } catch (error) {
+      log.error('Error creating category', { name: trimmedName }, error as Error)
+      toast.error('Failed to create category')
+    }
   }
 
   const deleteSelectedItems = async () => {
     if (selectedItems.length === 0) return
-    await deletePhotos(selectedItems)
-    setSelectedItems([])
+    
+    try {
+      await deletePhotos(selectedItems)
+      setSelectedItems([])
+      toast.success(`Deleted ${selectedItems.length} photos`)
+    } catch (error) {
+      console.error('Error deleting photos:', error)
+      toast.error('Failed to delete photos')
+    }
   }
 
   const openEditCategory = (category: UnifiedCategory) => {
@@ -205,19 +272,60 @@ function PhotoSorter() {
   const saveEditCategory = async () => {
     if (!editingCategory) return
     
-    await updateCategory(editingCategory.id, editingCategory)
-    setEditingCategory(null)
-    setIsEditCategoryOpen(false)
+    const trimmedName = editingCategory.name.trim()
+    if (!trimmedName) {
+      toast.error('Category name cannot be empty')
+      return
+    }
+
+    if (trimmedName.length > 100) {
+      toast.error('Category name must be less than 100 characters')
+      return
+    }
+
+    // Check for duplicate names (excluding current category)
+    if (categories.some(cat => 
+      cat.id !== editingCategory.id && 
+      cat.name.toLowerCase() === trimmedName.toLowerCase()
+    )) {
+      toast.error('A category with this name already exists')
+      return
+    }
+    
+    try {
+      const updatedCategory = {
+        ...editingCategory,
+        name: trimmedName,
+        patterns: editingCategory.patterns
+          .map(p => p.trim())
+          .filter(p => p.length > 0 && p.length <= 50)
+          .slice(0, 20)
+      }
+
+      await updateCategory(editingCategory.id, updatedCategory)
+      setEditingCategory(null)
+      setIsEditCategoryOpen(false)
+      toast.success(`Category "${trimmedName}" updated successfully`)
+    } catch (error) {
+      console.error('Error updating category:', error)
+      toast.error('Failed to update category')
+    }
   }
 
   const runDuplicateDetectionWithSettings = async () => {
-    await runDuplicateDetection({
-      checkFileSize: detectionSettings.checkFileSize,
-      checkFilename: detectionSettings.checkFilename,
-      checkHash: detectionSettings.checkHash,
-      similarityThreshold: detectionSettings.similarityThreshold
-    })
-    setDuplicateDetectionOpen(false)
+    try {
+      await runDuplicateDetection({
+        checkFileSize: detectionSettings.checkFileSize,
+        checkFilename: detectionSettings.checkFilename,
+        checkHash: detectionSettings.checkHash,
+        similarityThreshold: detectionSettings.similarityThreshold
+      })
+      setDuplicateDetectionOpen(false)
+      toast.success('Duplicate detection completed')
+    } catch (error) {
+      console.error('Error running duplicate detection:', error)
+      toast.error('Failed to run duplicate detection')
+    }
   }
 
   const toggleDuplicateGroupSelection = (groupId: string) => {
@@ -234,59 +342,70 @@ function PhotoSorter() {
   }
 
   const keepPhotoInGroup = async (groupPhotos: UnifiedPhoto[], keepPhoto: UnifiedPhoto) => {
-    const photosToDelete = groupPhotos.filter(photo => photo.id !== keepPhoto.id).map(photo => photo.id)
-    if (photosToDelete.length > 0) {
-      await deletePhotos(photosToDelete)
-      setIsCompareOpen(false)
+    try {
+      const photosToDelete = groupPhotos.filter(photo => photo.id !== keepPhoto.id).map(photo => photo.id)
+      if (photosToDelete.length > 0) {
+        await deletePhotos(photosToDelete)
+        setIsCompareOpen(false)
+        toast.success(`Kept "${keepPhoto.name}" and deleted ${photosToDelete.length} duplicates`)
+      }
+    } catch (error) {
+      console.error('Error processing duplicates:', error)
+      toast.error('Failed to process duplicates')
     }
   }
 
   const processSelectedDuplicateGroups = async (action: 'keep-first' | 'keep-largest' | 'keep-newest') => {
     if (selectedDuplicateGroups.length === 0) return
 
-    const photosToDelete: string[] = []
+    try {
+      const photosToDelete: string[] = []
 
-    for (const groupId of selectedDuplicateGroups) {
-      const group = duplicateGroups.find(g => g.id === groupId)
-      if (!group || group.photos.length < 2) continue
+      for (const groupId of selectedDuplicateGroups) {
+        const group = duplicateGroups.find(g => g.id === groupId)
+        if (!group || group.photos.length < 2) continue
 
-      let photoToKeep: UnifiedPhoto
+        let photoToKeep: UnifiedPhoto
 
-      switch (action) {
-        case 'keep-first':
-          photoToKeep = group.photos[0]
-          break
-        case 'keep-largest':
-          photoToKeep = group.photos.reduce((prev, current) => 
-            prev.size > current.size ? prev : current
-          )
-          break
-        case 'keep-newest':
-          photoToKeep = group.photos.reduce((prev, current) => {
-            const prevTime = typeof prev.lastModified === 'string' 
-              ? new Date(prev.lastModified).getTime()
-              : prev.lastModified
-            const currentTime = typeof current.lastModified === 'string'
-              ? new Date(current.lastModified).getTime()
-              : current.lastModified
-            return prevTime > currentTime ? prev : current
-          })
-          break
-        default:
-          continue
+        switch (action) {
+          case 'keep-first':
+            photoToKeep = group.photos[0]
+            break
+          case 'keep-largest':
+            photoToKeep = group.photos.reduce((prev, current) => 
+              prev.size > current.size ? prev : current
+            )
+            break
+          case 'keep-newest':
+            photoToKeep = group.photos.reduce((prev, current) => {
+              const prevTime = typeof prev.lastModified === 'string' 
+                ? new Date(prev.lastModified).getTime()
+                : prev.lastModified
+              const currentTime = typeof current.lastModified === 'string'
+                ? new Date(current.lastModified).getTime()
+                : current.lastModified
+              return prevTime > currentTime ? prev : current
+            })
+            break
+          default:
+            continue
+        }
+
+        const groupPhotosToDelete = group.photos
+          .filter(photo => photo.id !== photoToKeep.id)
+          .map(photo => photo.id)
+        
+        photosToDelete.push(...groupPhotosToDelete)
       }
 
-      const groupPhotosToDelete = group.photos
-        .filter(photo => photo.id !== photoToKeep.id)
-        .map(photo => photo.id)
-      
-      photosToDelete.push(...groupPhotosToDelete)
-    }
-
-    if (photosToDelete.length > 0) {
-      await deletePhotos(photosToDelete)
-      setSelectedDuplicateGroups([])
-      toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups`)
+      if (photosToDelete.length > 0) {
+        await deletePhotos(photosToDelete)
+        setSelectedDuplicateGroups([])
+        toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups, deleted ${photosToDelete.length} photos`)
+      }
+    } catch (error) {
+      console.error('Error processing duplicate groups:', error)
+      toast.error('Failed to process duplicate groups')
     }
   }
 
@@ -553,18 +672,47 @@ function PhotoSorter() {
     
     toast.info('Test file generation guide printed to console - create these file structures for comprehensive testing')
   }
-  // File input handler for local photos with enhanced logging  
+  // File input handler for local photos with enhanced logging and error handling
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files && files.length > 0) {
-      console.log(`=== File Input Test ===`)
-      console.log(`Selected ${files.length} files:`)
+    try {
+      const files = event.target.files
+      if (!files || files.length === 0) {
+        toast.info('No files selected')
+        return
+      }
+
+      // Rate limiting
+      if (rateLimiter.isRateLimited('file-upload', 10, 60000)) {
+        toast.error('Too many upload requests. Please wait a moment.')
+        return
+      }
+
+      log.info('Processing file input', { fileCount: files.length })
       
-      Array.from(files).forEach((file, index) => {
-        console.log(`${index + 1}. ${file.name} (${file.type}, ${file.size} bytes)`)
+      // Sanitize and validate files
+      const sanitizedFiles = sanitizeFiles(files)
+      
+      if (sanitizedFiles.length === 0) {
+        toast.error('No valid image files found')
+        return
+      }
+
+      if (sanitizedFiles.length !== files.length) {
+        toast.warn(`${files.length - sanitizedFiles.length} files were filtered out due to invalid format or size`)
+      }
+      
+      log.debug('File validation completed', {
+        original: files.length,
+        sanitized: sanitizedFiles.length,
+        files: sanitizedFiles.map(f => ({ name: f.name, size: f.size, type: f.type }))
       })
       
-      loadPhotos(false, files)
+      loadPhotos(false, sanitizedFiles)
+      toast.success(`Processing ${sanitizedFiles.length} photos`)
+      
+    } catch (error) {
+      log.error('Error handling file input', {}, error as Error)
+      toast.error('Failed to process selected files')
     }
   }
 
@@ -625,6 +773,7 @@ function PhotoSorter() {
                           }} 
                           className="flex-1"
                           size="lg"
+                          aria-label="Choose local folder for photo organization"
                         >
                           <Folder className="w-4 h-4 mr-2" />
                           Choose Folder
@@ -691,6 +840,7 @@ function PhotoSorter() {
                       }}
                       className="w-full"
                       size="lg"
+                      aria-label="Connect to Microsoft OneDrive for cloud photo organization"
                     >
                       <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
                       Connect to OneDrive
@@ -719,7 +869,7 @@ function PhotoSorter() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button onClick={authenticateOneDrive} className="w-full" size="lg">
+            <Button onClick={authenticateOneDrive} className="w-full" size="lg" aria-label="Sign in with Microsoft account">
               <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
               Sign In with Microsoft
             </Button>
@@ -744,17 +894,10 @@ function PhotoSorter() {
   // Loading screen
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardContent className="py-8">
-            <div className="text-center space-y-4">
-              <CloudArrowDown className="w-12 h-12 text-primary mx-auto animate-bounce" />
-              <h3 className="text-lg font-medium">Connecting to OneDrive...</h3>
-              <p className="text-muted-foreground">Please wait while we authenticate your account.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <LoadingState 
+        message={currentProvider === 'onedrive' ? 'Connecting to OneDrive...' : 'Loading application...'} 
+        provider={currentProvider}
+      />
     )
   }
 
@@ -830,8 +973,9 @@ function PhotoSorter() {
                   <Input
                     placeholder="Search photos..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(sanitizeSearchQuery(e.target.value))}
                     className="pl-10"
+                    maxLength={100}
                   />
                 </div>
               </div>
@@ -844,7 +988,7 @@ function PhotoSorter() {
                 <SelectContent>
                   <SelectItem value="all">All categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
+                    <SelectItem key={category.id} value={category.id || `category-${category.name}`}>
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full"
@@ -1687,4 +1831,10 @@ function PhotoSorter() {
   )
 }
 
-export default PhotoSorter
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <PhotoSorter />
+    </ErrorBoundary>
+  )
+}
