@@ -23,6 +23,7 @@ import { localPhotoService } from '@/services/local'
 import { config } from '@/lib/config'
 import { log } from '@/lib/logger'
 import { sanitizeTextInput, sanitizeColor, sanitizeSearchQuery, sanitizeFiles, rateLimiter } from '@/lib/sanitizer'
+import { performanceMonitor, memoryMonitor, productionChecks } from '@/lib/performance'
 import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
@@ -97,6 +98,14 @@ function PhotoSorter() {
     return {}
   }, [photos.length, currentProvider])
 
+  // Run production readiness checks on mount
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      productionChecks.checkEnvironment()
+      productionChecks.checkPerformance()
+    }
+  }, [])
+
   // Handle auth callback for OneDrive with error handling
   React.useEffect(() => {
     if (currentProvider !== 'onedrive') return
@@ -145,7 +154,7 @@ function PhotoSorter() {
     try {
       filterPhotos(searchQuery, selectedCategoryFilter)
     } catch (error) {
-      console.error('Error filtering photos:', error)
+      log.error('Error filtering photos', { searchQuery, selectedCategoryFilter }, error as Error)
       toast.error('Failed to filter photos')
     }
   }, [searchQuery, selectedCategoryFilter, photos, filterPhotos])
@@ -259,7 +268,7 @@ function PhotoSorter() {
       setSelectedItems([])
       toast.success(`Deleted ${selectedItems.length} photos`)
     } catch (error) {
-      console.error('Error deleting photos:', error)
+      log.error('Error deleting photos', { selectedItemsCount: selectedItems.length }, error as Error)
       toast.error('Failed to delete photos')
     }
   }
@@ -307,23 +316,30 @@ function PhotoSorter() {
       setIsEditCategoryOpen(false)
       toast.success(`Category "${trimmedName}" updated successfully`)
     } catch (error) {
-      console.error('Error updating category:', error)
+      log.error('Error updating category', { categoryId: editingCategory.id, categoryName: trimmedName }, error as Error)
       toast.error('Failed to update category')
     }
   }
 
   const runDuplicateDetectionWithSettings = async () => {
     try {
+      performanceMonitor.mark('duplicate-detection-start')
+      memoryMonitor.logMemoryUsage('Before duplicate detection')
+      
       await runDuplicateDetection({
         checkFileSize: detectionSettings.checkFileSize,
         checkFilename: detectionSettings.checkFilename,
         checkHash: detectionSettings.checkHash,
         similarityThreshold: detectionSettings.similarityThreshold
       })
+      
+      performanceMonitor.measure('duplicate-detection', 'duplicate-detection-start')
+      memoryMonitor.logMemoryUsage('After duplicate detection')
+      
       setDuplicateDetectionOpen(false)
       toast.success('Duplicate detection completed')
     } catch (error) {
-      console.error('Error running duplicate detection:', error)
+      log.error('Error running duplicate detection', { settings: detectionSettings }, error as Error)
       toast.error('Failed to run duplicate detection')
     }
   }
@@ -350,7 +366,7 @@ function PhotoSorter() {
         toast.success(`Kept "${keepPhoto.name}" and deleted ${photosToDelete.length} duplicates`)
       }
     } catch (error) {
-      console.error('Error processing duplicates:', error)
+      log.error('Error processing duplicates', { keepPhotoId: keepPhoto.id, groupSize: groupPhotos.length }, error as Error)
       toast.error('Failed to process duplicates')
     }
   }
@@ -404,7 +420,7 @@ function PhotoSorter() {
         toast.success(`Processed ${selectedDuplicateGroups.length} duplicate groups, deleted ${photosToDelete.length} photos`)
       }
     } catch (error) {
-      console.error('Error processing duplicate groups:', error)
+      log.error('Error processing duplicate groups', { selectedGroupsCount: selectedDuplicateGroups.length, action }, error as Error)
       toast.error('Failed to process duplicate groups')
     }
   }
@@ -988,7 +1004,7 @@ function PhotoSorter() {
                 <SelectContent>
                   <SelectItem value="all">All categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id || `category-${category.name}`}>
+                    <SelectItem key={category.id || category.name} value={category.id || `category-${category.name}`}>
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full"

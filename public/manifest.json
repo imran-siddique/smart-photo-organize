@@ -1,0 +1,62 @@
+{
+  "name": "Photo Sorter - Professional Photo Organization",
+  "short_name": "Photo Sorter",
+  "description": "Professional photo organization tool with AI-powered duplicate detection and intelligent categorization",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#6366f1",
+  "background_color": "#ffffff",
+  "categories": ["productivity", "photo"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%236366f1' rx='24'/><path d='M48 144 L144 48 L168 72 L72 168 Z' fill='white'/><circle cx='72' cy='72' r='12' fill='white'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%236366f1' rx='64'/><path d='M128 384 L384 128 L448 192 L192 448 Z' fill='white'/><circle cx='192' cy='192' r='32' fill='white'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect width='1280' height='720' fill='%23f8fafc'/><rect x='40' y='40' width='1200' height='80' fill='white' rx='8'/><rect x='60' y='55' width='200' height='20' fill='%236366f1' rx='4'/><rect x='60' y='75' width='300' height='15' fill='%2394a3b8' rx='3'/><rect x='40' y='140' width='590' height='540' fill='white' rx='8'/><rect x='60' y='160' width='200' height='20' fill='%230f172a' rx='4'/><rect x='650' y='140' width='590' height='260' fill='white' rx='8'/><rect x='650' y='420' width='590' height='260' fill='white' rx='8'/></svg>",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Load Local Photos",
+      "short_name": "Local",
+      "description": "Organize photos from your computer",
+      "url": "/?source=local",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z'/></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "OneDrive Photos",
+      "short_name": "OneDrive",
+      "description": "Organize photos from OneDrive",
+      "url": "/?source=onedrive",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230078d4'><path d='M19.5 11.5c0-4.14-3.36-7.5-7.5-7.5-3.09 0-5.75 1.88-6.87 4.56C2.18 9.64 0 12.33 0 15.5c0 2.76 2.24 5 5 5h13c2.21 0 4-1.79 4-4 0-2.05-1.55-3.76-3.5-3.95z'/></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "lang": "en-US",
+  "dir": "ltr"
+}

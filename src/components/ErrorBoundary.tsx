@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { ErrorFallback } from './ErrorFallback'
+import { errorReporting } from '@/lib/performance'
 
 interface Props {
   children: ReactNode
@@ -25,8 +26,12 @@ export class ErrorBoundary extends Component<Props, State> {
     // Log error to monitoring service in production
     console.error('Error caught by boundary:', error, errorInfo)
     
-    // In production, you would send this to a logging service
-    // Example: Sentry.captureException(error, { contexts: { errorInfo } })
+    // Report to production error monitoring
+    errorReporting.reportError(error, {
+      errorInfo,
+      component: 'ErrorBoundary',
+      props: this.props
+    })
   }
 
   handleReset = () => {
