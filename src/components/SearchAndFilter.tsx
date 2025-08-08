@@ -54,17 +54,20 @@ export function SearchAndFilter({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category.id || category.name} value={category.id || `category-${category.name}`}>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {category.name}
-                  </div>
-                </SelectItem>
-              ))}
+              {categories.map((category, index) => {
+                const categoryValue = category.id || `category-${category.name || `index-${index}`}`
+                return (
+                  <SelectItem key={categoryValue} value={categoryValue}>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      {category.name || 'Unnamed Category'}
+                    </div>
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
 
