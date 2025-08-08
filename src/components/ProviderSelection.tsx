@@ -33,7 +33,7 @@ export function ProviderSelection({
       }
 
       if (sanitizedFiles.length !== files.length) {
-        toast.warn(`${files.length - sanitizedFiles.length} files were filtered out due to invalid format or size`)
+        toast.error(`${files.length - sanitizedFiles.length} files were filtered out due to invalid format or size`)
       }
       
       log.debug('File validation completed', {

@@ -58,8 +58,7 @@ function PhotoSorter() {
     runDuplicateDetection,
     runAdvancedDuplicateTest,
     filterPhotos,
-    formatFileSize,
-    setError
+    formatFileSize
   } = usePhotoStorage()
 
   // Smart Albums hook
@@ -89,6 +88,7 @@ function PhotoSorter() {
   const [showTestingPanel, setShowTestingPanel] = React.useState(false)
   const [showSmartAlbums, setShowSmartAlbums] = React.useState(false)
   const [showSmartAlbumRules, setShowSmartAlbumRules] = React.useState(false)
+  const [localError, setLocalError] = React.useState<string | null>(null)
 
   // Duplicate detection state
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
@@ -144,7 +144,7 @@ function PhotoSorter() {
       }).catch(error => {
         log.error('OneDrive authentication error', {}, error as Error)
         toast.error('Failed to authenticate with OneDrive')
-        setError('Authentication failed. Please try again.')
+        setLocalError('Authentication failed. Please try again.')
       })
     } else if (hash && hash.includes('error')) {
       const params = new URLSearchParams(hash.replace('#', ''))
@@ -161,10 +161,10 @@ function PhotoSorter() {
       }
       
       toast.error(errorMessage)
-      setError(errorMessage)
+      setLocalError(errorMessage)
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [handleOneDriveCallback, currentProvider, setError])
+  }, [handleOneDriveCallback, currentProvider])
 
   // Filter photos effect
   React.useEffect(() => {
@@ -465,7 +465,7 @@ function PhotoSorter() {
           onAuthenticate={authenticateOneDrive}
           onBack={() => setShowProviderSelection(true)}
           onLogout={logoutOneDrive}
-          error={error}
+          error={error || localError}
           user={oneDriveUser}
           isAuthenticated={isOneDriveAuthenticated}
         />
@@ -490,7 +490,7 @@ function PhotoSorter() {
         
         {/* Header */}
         <AppHeader
-          currentProvider={currentProvider}
+          currentProvider={currentProvider || 'local'}
           oneDriveUser={oneDriveUser}
           showTestingPanel={showTestingPanel}
           showSmartAlbums={showSmartAlbums}
@@ -539,7 +539,7 @@ function PhotoSorter() {
         {/* Smart Albums Section */}
         {showSmartAlbums && !showSmartAlbumRules && (
           <SmartAlbumsGrid
-            albums={albums}
+            albums={albums || []}
             isGenerating={isGeneratingSmartAlbums}
             statistics={smartAlbumStats}
             onViewAlbum={(album) => {
@@ -555,8 +555,8 @@ function PhotoSorter() {
         {showSmartAlbums && showSmartAlbumRules && (
           <SmartAlbumRulesManager
             predefinedRules={predefinedRules}
-            customRules={customRules}
-            suggestedRules={suggestedRules}
+            customRules={customRules || []}
+            suggestedRules={suggestedRules || []}
             onCreateRule={createCustomRule}
             onUpdateRule={updateCustomRule}
             onDeleteRule={deleteCustomRule}
@@ -581,7 +581,7 @@ function PhotoSorter() {
         {/* Photo Loader */}
         {!showSmartAlbums && (
           <PhotoLoader
-            currentProvider={currentProvider}
+            currentProvider={currentProvider || 'local'}
             photos={photos}
             filteredPhotos={filteredPhotos}
             isLoadingPhotos={isLoadingPhotos}
@@ -635,7 +635,7 @@ function PhotoSorter() {
         {/* Action Buttons */}
         {!showSmartAlbums && (
           <ActionButtons
-            currentProvider={currentProvider}
+            currentProvider={currentProvider || 'local'}
             photosCount={photos.length}
             isDuplicateDetectionRunning={isDuplicateDetectionRunning}
             onLoadPhotos={loadPhotos}
@@ -646,7 +646,7 @@ function PhotoSorter() {
         {/* Empty State */}
         {!showSmartAlbums && photos.length === 0 && !isLoadingPhotos && (
           <EmptyState
-            currentProvider={currentProvider}
+            currentProvider={currentProvider || 'local'}
             isFileSystemAccessSupported={isFileSystemAccessSupported}
             onLoadPhotos={loadPhotos}
             onFileSelect={handleFileSelect}

@@ -42,7 +42,7 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
       // Check if we need to regenerate
       if (!forceRegenerate && lastGenerated) {
         const hoursSinceLastGeneration = (Date.now() - new Date(lastGenerated).getTime()) / (1000 * 60 * 60)
-        if (hoursSinceLastGeneration < 1 && albums.length > 0) {
+        if (hoursSinceLastGeneration < 1 && albums && albums.length > 0) {
           log.info('Smart albums generated recently, skipping regeneration', { hoursSince: hoursSinceLastGeneration })
           toast.info('Smart albums are up to date')
           return
@@ -68,7 +68,7 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
     } finally {
       setIsGenerating(false)
     }
-  }, [photos, customRules, lastGenerated, albums.length, isGenerating, setAlbums, setLastGenerated])
+  }, [photos, customRules, lastGenerated, albums?.length || 0, isGenerating, setAlbums, setLastGenerated])
 
   // Generate suggested rules based on photo collection
   const generateSuggestedRules = React.useCallback(async () => {
@@ -97,15 +97,15 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
 
   // Accept a suggested rule
   const acceptSuggestedRule = React.useCallback((ruleId: string) => {
-    const rule = suggestedRules.find(r => r.id === ruleId)
+    const rule = suggestedRules?.find(r => r.id === ruleId)
     if (!rule) return
 
     // Add to custom rules and enable it
     const enabledRule: SmartAlbumRule = { ...rule, enabled: true }
-    setCustomRules(current => [...current, enabledRule])
+    setCustomRules(current => current ? [...current, enabledRule] : [enabledRule])
     
     // Remove from suggestions
-    setSuggestedRules(current => current.filter(r => r.id !== ruleId))
+    setSuggestedRules(current => current ? current.filter(r => r.id !== ruleId) : [])
     
     toast.success(`Added "${rule.name}" to your smart albums`)
     log.info('Accepted suggested rule', { ruleName: rule.name, ruleType: rule.type })
@@ -113,14 +113,14 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
 
   // Reject a suggested rule
   const rejectSuggestedRule = React.useCallback((ruleId: string) => {
-    setSuggestedRules(current => current.filter(r => r.id !== ruleId))
+    setSuggestedRules(current => current ? current.filter(r => r.id !== ruleId) : [])
     toast.info('Suggestion dismissed')
   }, [setSuggestedRules])
 
   // Create a custom rule
   const createCustomRule = React.useCallback((rule: Omit<SmartAlbumRule, 'id'>) => {
     const newRule = smartAlbumsService.createCustomRule(rule)
-    setCustomRules(current => [...current, newRule])
+    setCustomRules(current => current ? [...current, newRule] : [newRule])
     
     toast.success(`Created custom rule: ${rule.name}`)
     log.info('Created custom smart album rule', { ruleName: rule.name, ruleType: rule.type })
@@ -131,9 +131,9 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
   // Update a custom rule
   const updateCustomRule = React.useCallback((ruleId: string, updates: Partial<SmartAlbumRule>) => {
     setCustomRules(current => 
-      current.map(rule => 
+      current ? current.map(rule => 
         rule.id === ruleId ? { ...rule, ...updates } : rule
-      )
+      ) : []
     )
     
     toast.success('Smart album rule updated')
@@ -142,13 +142,13 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
 
   // Delete a custom rule
   const deleteCustomRule = React.useCallback((ruleId: string) => {
-    const rule = customRules.find(r => r.id === ruleId)
+    const rule = customRules?.find(r => r.id === ruleId)
     if (!rule) return
 
-    setCustomRules(current => current.filter(r => r.id !== ruleId))
+    setCustomRules(current => current ? current.filter(r => r.id !== ruleId) : [])
     
     // Remove any albums generated from this rule
-    setAlbums(current => current.filter(album => album.rule.id !== ruleId))
+    setAlbums(current => current ? current.filter(album => album.rule.id !== ruleId) : [])
     
     toast.success(`Deleted rule: ${rule.name}`)
     log.info('Deleted custom smart album rule', { ruleName: rule.name })
@@ -156,7 +156,7 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
 
   // Get album by ID
   const getAlbumById = React.useCallback((albumId: string) => {
-    return albums.find(album => album.id === albumId)
+    return albums?.find(album => album.id === albumId)
   }, [albums])
 
   // Get photos in album
@@ -197,8 +197,8 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
 
   // Get statistics
   const statistics = React.useMemo(() => {
-    const totalPhotosInAlbums = albums.reduce((sum, album) => sum + album.photoCount, 0)
-    const averageConfidence = albums.length > 0 
+    const totalPhotosInAlbums = albums?.reduce((sum, album) => sum + album.photoCount, 0) || 0
+    const averageConfidence = albums && albums.length > 0 
       ? albums.reduce((sum, album) => sum + album.confidence, 0) / albums.length 
       : 0
     const organizationPercentage = photos.length > 0 
@@ -206,14 +206,14 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
       : 0
 
     return {
-      totalAlbums: albums.length,
+      totalAlbums: albums?.length || 0,
       totalPhotosInAlbums,
       averageConfidence,
       organizationPercentage,
-      customRulesCount: customRules.length,
-      suggestedRulesCount: suggestedRules.length
+      customRulesCount: customRules?.length || 0,
+      suggestedRulesCount: suggestedRules?.length || 0
     }
-  }, [albums, photos.length, customRules.length, suggestedRules.length])
+  }, [albums, photos.length, customRules?.length, suggestedRules?.length])
 
   return {
     // Data

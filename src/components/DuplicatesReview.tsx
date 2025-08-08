@@ -11,10 +11,10 @@ import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { UnifiedPhoto, DuplicateGroup } from '@/hooks/usePhotoStorage'
+import { UnifiedPhoto, UnifiedDuplicateGroup } from '@/hooks/usePhotoStorage'
 
 interface DuplicatesReviewProps {
-  duplicateGroups: DuplicateGroup[]
+  duplicateGroups: UnifiedDuplicateGroup[]
   selectedDuplicateGroups: string[]
   isDuplicateDetectionRunning: boolean
   detectionSettings: {

@@ -109,7 +109,9 @@ class LocalPhotoService {
       const currentPath = path ? `${path}/${handle.name}` : handle.name
       const filesInFolder: string[] = []
       
-      for await (const [name, fileHandle] of handle.entries()) {
+      // Check if entries method is available (newer browsers)
+      if ('entries' in handle && typeof handle.entries === 'function') {
+        for await (const [name, fileHandle] of handle.entries()) {
         if (fileHandle.kind === 'file') {
           const file = await (fileHandle as FileSystemFileHandle).getFile()
           const isImage = this.isImageFile(file)
@@ -132,6 +134,9 @@ class LocalPhotoService {
           console.log(`Entering subdirectory: ${currentPath}/${name}`)
           await processDirectory(fileHandle as FileSystemDirectoryHandle, currentPath)
         }
+      } else {
+        // Fallback for browsers that don't support entries method
+        console.warn('FileSystemDirectoryHandle.entries() not supported in this browser')
       }
       
       if (filesInFolder.length > 0) {

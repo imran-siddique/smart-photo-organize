@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { 
-  Sparkles, 
+  Sparkle, 
   Calendar, 
   Users, 
   MapPin, 
@@ -81,7 +81,7 @@ export function SmartAlbumsGrid({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
+            <Sparkle className="h-6 w-6 text-primary" />
             Smart Albums
           </h2>
           <p className="text-muted-foreground">
@@ -110,7 +110,7 @@ export function SmartAlbumsGrid({
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkle className="h-4 w-4 mr-2" />
                 Generate Albums
               </>
             )}
@@ -163,7 +163,7 @@ export function SmartAlbumsGrid({
                 <p className="text-sm text-muted-foreground">Organization</p>
                 <p className="text-2xl font-bold">{Math.round(statistics.organizationPercentage)}%</p>
               </div>
-              <Sparkles className="h-8 w-8 text-muted-foreground" />
+              <Sparkle className="h-8 w-8 text-muted-foreground" />
             </div>
             <Progress value={statistics.organizationPercentage} className="mt-2 h-1" />
           </CardContent>
@@ -270,7 +270,7 @@ export function SmartAlbumsGrid({
         <Card className="p-12 text-center">
           <div className="space-y-4">
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-primary" />
+              <Sparkle className="h-6 w-6 text-primary" />
             </div>
             <div className="space-y-2">
               <h3 className="text-lg font-medium">No Smart Albums Yet</h3>
@@ -286,7 +286,7 @@ export function SmartAlbumsGrid({
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Sparkle className="h-4 w-4 mr-2" />
                   Generate Smart Albums
                 </>
               )}

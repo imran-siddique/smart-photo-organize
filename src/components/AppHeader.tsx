@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Sparkles, FlaskConical } from '@phosphor-icons/react'
+import { Sparkle, Flask } from '@phosphor-icons/react'
 
 interface AppHeaderProps {
   currentProvider: 'local' | 'onedrive'
@@ -33,7 +33,7 @@ export function AppHeader({
           {currentProvider === 'local' ? 'Local Photo Sorter' : 'OneDrive Photo Sorter'}
           {showSmartAlbums && (
             <Badge variant="secondary" className="text-sm">
-              <Sparkles className="h-3 w-3 mr-1" />
+              <Sparkle className="h-3 w-3 mr-1" />
               Smart Albums
             </Badge>
           )}
@@ -61,7 +61,7 @@ export function AppHeader({
           onClick={onToggleSmartAlbums} 
           size="sm"
         >
-          <Sparkles className="h-4 w-4 mr-2" />
+          <Sparkle className="h-4 w-4 mr-2" />
           {showSmartAlbums ? 'Exit' : 'Smart Albums'}
         </Button>
         <Button 
@@ -69,7 +69,7 @@ export function AppHeader({
           onClick={onToggleTestingPanel} 
           size="sm"
         >
-          <FlaskConical className="h-4 w-4 mr-2" />
+          <Flask className="h-4 w-4 mr-2" />
           {showTestingPanel ? 'Hide' : 'Show'} Testing
         </Button>
         {currentProvider === 'onedrive' && onLogout && (
