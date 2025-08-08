@@ -10,7 +10,7 @@ interface ErrorFallbackProps {
 }
 
 export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  const isDevelopment = import.meta.env?.DEV || window.location.hostname === 'localhost'
 
   const handleRefresh = () => {
     // Try resetting the error boundary first

@@ -1,6 +1,6 @@
 // Service Worker registration for production performance
 export const registerServiceWorker = () => {
-  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  if ('serviceWorker' in navigator && import.meta.env?.DEV === false) {
     navigator.serviceWorker
       .register('/sw.js')
       .then(registration => {
@@ -74,7 +74,7 @@ export const memoryMonitor = {
 export const productionChecks = {
   checkEnvironment: () => {
     const checks = {
-      isProduction: process.env.NODE_ENV === 'production',
+      isProduction: import.meta.env?.DEV === false,
       hasServiceWorker: 'serviceWorker' in navigator,
       hasWebGL: !!window.WebGLRenderingContext,
       hasFileSystemAccess: 'showDirectoryPicker' in window,
@@ -104,7 +104,7 @@ export const productionChecks = {
 // Error boundary production reporting
 export const errorReporting = {
   reportError: (error: Error, context: any) => {
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env?.DEV === false) {
       // In production, you would send to an error monitoring service
       console.error('Production Error Report:', {
         message: error.message,

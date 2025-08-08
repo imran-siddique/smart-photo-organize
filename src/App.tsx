@@ -100,7 +100,10 @@ function PhotoSorter() {
 
   // Run production readiness checks on mount
   React.useEffect(() => {
-    if (process.env.NODE_ENV === 'production') {
+    // Check if we're in production by looking for development-specific features
+    const isDevelopment = import.meta.env?.DEV || window.location.hostname === 'localhost'
+    
+    if (!isDevelopment) {
       productionChecks.checkEnvironment()
       productionChecks.checkPerformance()
     }

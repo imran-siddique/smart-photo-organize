@@ -21,7 +21,7 @@ class Logger {
   private maxEntries = 1000
 
   constructor() {
-    this.level = process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG
+    this.level = (import.meta.env?.DEV === false) ? LogLevel.WARN : LogLevel.DEBUG
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -45,7 +45,7 @@ class Logger {
     }
 
     // In production, you would send critical errors to a monitoring service
-    if (level === LogLevel.ERROR && process.env.NODE_ENV === 'production') {
+    if (level === LogLevel.ERROR && import.meta.env?.DEV === false) {
       this.reportError(entry)
     }
   }

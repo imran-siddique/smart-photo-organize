@@ -3,13 +3,13 @@ export const config = {
   // Application
   app: {
     name: 'Photo Sorter',
-    version: process.env.VITE_APP_VERSION || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    version: import.meta.env?.VITE_APP_VERSION || '1.0.0',
+    environment: import.meta.env?.DEV ? 'development' : 'production',
   },
 
   // OneDrive Configuration
   onedrive: {
-    clientId: process.env.VITE_ONEDRIVE_CLIENT_ID || 'your-onedrive-client-id',
+    clientId: import.meta.env?.VITE_ONEDRIVE_CLIENT_ID || 'your-onedrive-client-id',
     authority: 'https://login.microsoftonline.com/common',
     redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
     scopes: ['User.Read', 'Files.Read.All', 'Files.ReadWrite.All'],
@@ -43,7 +43,7 @@ export const config = {
 
   // Features
   features: {
-    enableTesting: process.env.NODE_ENV === 'development',
+    enableTesting: import.meta.env?.DEV || false,
     enableAdvancedDuplicateDetection: true,
     enableParallelProcessing: true,
     enableCaching: true
