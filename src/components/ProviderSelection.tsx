@@ -1,39 +1,29 @@
 import React from 'react'
 import { MicrosoftOutlookLogo, Folder, Upload } from '@phosphor-icons/react'
-import { Card, CardContent, CardHeader, CardTit
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-interface ProviderSelectionProps {
 import { log } from '@/lib/logger'
+import { sanitizeFiles } from '@/lib/sanitizer'
 
 interface ProviderSelectionProps {
   onProviderSelect: (provider: 'local' | 'onedrive') => void
   isFileSystemAccessSupported: boolean
-  onFileSelect 
+  onFileSelect: (files: FileList) => void
 }
 
 export function ProviderSelection({ 
   onProviderSelect, 
   isFileSystemAccessSupported, 
-      // Saniti
-      
-        toast.error('No valid image files found')
-      }
-      if (sanitizedFiles.length !== fi
-      }
-      log.debug('File validation comple
-        saniti
-      }
+  onFileSelect 
+}: ProviderSelectionProps) {
+  
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
-      
-      log.error('Error handling file input', {}, error as Error)
-    }
-
-    <di
-
-          <p className="text-muted-foreground">
-      
+    try {
       // Sanitize and validate files
       const sanitizedFiles = sanitizeFiles(files)
       
@@ -76,7 +66,7 @@ export function ProviderSelection({
               <TabsTrigger value="local" className="flex items-center gap-2">
                 <Folder className="w-4 h-4" />
                 Local Folder
-                        Choo
+              </TabsTrigger>
               <TabsTrigger value="onedrive" className="flex items-center gap-2">
                 <MicrosoftOutlookLogo className="w-4 h-4" />
                 OneDrive
@@ -88,7 +78,7 @@ export function ProviderSelection({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Folder className="w-5 h-5" />
-                          Folder access
+                    Local Folder Access
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Organize photos directly from your computer
@@ -100,7 +90,7 @@ export function ProviderSelection({
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• Fast local processing</li>
                       <li>• No internet connection required</li>
-                  </p>
+                      <li>• Privacy-focused (data stays local)</li>
                       <li>• Advanced duplicate detection</li>
                       <li>• Custom categorization patterns</li>
                     </ul>
@@ -108,15 +98,15 @@ export function ProviderSelection({
                   
                   <div className="flex gap-2">
                     {isFileSystemAccessSupported ? (
-                  </div>
+                      <Button 
                         onClick={() => onProviderSelect('local')} 
                         className="flex-1"
                         size="lg"
                         aria-label="Choose local folder for photo organization"
                       >
-                  <Button 
+                        <Folder className="w-4 h-4 mr-2" />
                         Choose Folder
-                    size="lg"
+                      </Button>
                     ) : (
                       <div className="flex-1 space-y-2">
                         <Button asChild className="w-full" size="lg">
@@ -126,17 +116,17 @@ export function ProviderSelection({
                             <input
                               type="file"
                               multiple
-
+                              accept="image/*"
                               onChange={handleFileInputChange}
                               className="hidden"
                             />
-
+                          </label>
                         </Button>
                         <p className="text-xs text-muted-foreground text-center">
                           Folder access not supported in this browser
-
+                        </p>
                       </div>
-
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -144,11 +134,11 @@ export function ProviderSelection({
             
             <TabsContent value="onedrive" className="space-y-4 mt-6">
               <Card>
-
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MicrosoftOutlookLogo className="w-5 h-5" />
                     Microsoft OneDrive
-
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Access and organize photos from your OneDrive account
                   </p>
@@ -156,13 +146,13 @@ export function ProviderSelection({
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <h3 className="font-medium">Features:</h3>
-
+                    <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• Access photos from anywhere</li>
-
+                      <li>• Cloud storage and backup</li>
                       <li>• Automatic sync with OneDrive</li>
                       <li>• Batch operations for large collections</li>
                       <li>• Cross-device accessibility</li>
-
+                    </ul>
                   </div>
 
                   <div className="space-y-2">
@@ -172,21 +162,21 @@ export function ProviderSelection({
                     </p>
                   </div>
                   
-
+                  <Button 
                     onClick={() => onProviderSelect('onedrive')}
-
+                    className="w-full"
                     size="lg"
                     aria-label="Connect to Microsoft OneDrive for cloud photo organization"
                   >
                     <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
                     Connect to OneDrive
-
+                  </Button>
                 </CardContent>
-
+              </Card>
             </TabsContent>
-
+          </Tabs>
         </CardContent>
-
+      </Card>
     </div>
-
+  )
 }
