@@ -1,177 +1,168 @@
-# Photo Sorter - Unified Storage Architecture PRD
+# Photo Sorter - Product Requirements Document
 
 ## Core Purpose & Success
-- **Mission Statement**: Intelligent photo organization system with dual storage support - local folder access (default) and Microsoft OneDrive integration, featuring advanced duplicate detection, batch operations, and smart categorization.
-- **Success Indicators**: Fast photo processing from local or cloud sources, accurate duplicate detection, seamless batch operations, and intuitive file management across both local and cloud storage.
-- **Experience Qualities**: Efficient, privacy-focused, versatile
+- **Mission Statement**: Provide a professional-grade photo organization tool with AI-powered duplicate detection and intelligent categorization, built with modular architecture for maintainability and scalability.
+- **Success Indicators**: 
+  - Clean separation of concerns with reusable components
+  - Easy to extend and maintain codebase
+  - Enhanced developer experience with type-safe interfaces
+  - Production-ready performance and reliability
+- **Experience Qualities**: Professional, Modular, Maintainable
 
 ## Project Classification & Approach
-- **Complexity Level**: Complex Application (dual storage architecture with advanced processing)
-- **Primary User Activity**: Organizing and managing photos from local computer (default) or OneDrive with flexible provider switching
+- **Complexity Level**: Complex Application (advanced functionality with modular architecture)
+- **Primary User Activity**: Creating and Managing (photo organization with multiple provider support)
+- **Architecture**: Modular component-based design with clear separation of concerns
 
-## Architecture Overview
-- **Frontend**: React application with TypeScript and unified storage abstraction
-- **Local Storage**: Browser File System Access API for folder access, fallback to file selection
-- **Cloud Backend**: Microsoft OneDrive via Graph API for cloud file storage
-- **Authentication**: Microsoft OAuth 2.0 for OneDrive (optional)
-- **Processing**: Client-side parallel processing with provider-agnostic batch operations
-- **Data Persistence**: KV storage for categories, settings, and metadata per provider
+## Key Architecture Improvements
+- **Component Modularity**: Split monolithic App.tsx into focused, reusable components
+- **Clear Interfaces**: Each component has well-defined props interfaces
+- **Separation of Concerns**: UI components separated from business logic
+- **Reusability**: Components designed to be easily extended and reused
+- **Type Safety**: Full TypeScript support with proper type definitions
 
-## Essential Features
+## Essential Features & Components
 
-### Storage Provider Features
-- **Local Folder Access (Default)**: Direct folder access using File System Access API
-- **File Selection Fallback**: Traditional file input for browsers without folder API support
-- **OneDrive Integration**: Optional cloud storage with Microsoft authentication
-- **Provider Switching**: Seamless transition between local and cloud storage
-- **Unified Interface**: Consistent UI/UX regardless of storage provider
+### Core UI Components
+- **ProviderSelection**: Handle local/OneDrive provider choice with file input
+- **OneDriveAuth**: Manage Microsoft authentication flow
+- **AppHeader**: Application header with user info and navigation
+- **ProgressBar**: Visual progress indication for operations
+- **SearchAndFilter**: Photo search, category filtering, and sorting controls
 
-### Local Processing Features (Privacy-First)
-- Direct file access without uploads to external servers
-- Local duplicate detection using advanced algorithms
-- In-browser image analysis and categorization
-- Fast processing without network dependencies
-- Privacy-focused - files never leave the user's device
+### Photo Management Components
+- **PhotoLoader**: Handle photo loading from different providers
+- **PhotosGrid**: Display photos in responsive grid with selection
+- **EmptyState**: Graceful handling when no photos are loaded
+- **ActionButtons**: Primary action buttons for photo operations
 
-### Cloud Integration Features (OneDrive)
-- Microsoft OneDrive authentication with OAuth 2.0
-- Real-time photo loading from OneDrive with parallel processing
-- Batch file operations (move, delete, organize) with progress tracking
-- Microsoft Graph API batch requests for optimized performance
-- Automatic folder creation and organization in OneDrive
+### Category Management
+- **CategoriesGrid**: Display and manage photo categories
+- Category creation, editing, and deletion functionality
+- Pattern-based auto-categorization
 
-### Advanced Processing Features  
-- Parallel photo loading with configurable concurrency limits
-- Advanced duplicate detection with multiple algorithms (file hash, size, filename similarity)
-- Batch duplicate processing with configurable thresholds
-- Smart categorization with pattern matching
-- Visual photo comparison with side-by-side analysis
+### Duplicate Detection System
+- **DuplicatesReview**: Advanced duplicate detection with multiple algorithms
+- **PhotoComparison**: Side-by-side photo comparison interface
+- Batch processing for duplicate resolution
+- Multiple similarity thresholds and detection methods
 
-### User Experience Features
-- Provider selection screen with clear feature comparison
-- Category management with color coding and pattern matching
-- Bulk photo selection with advanced filtering and sorting
-- Real-time progress indicators for all operations
-- Search and filter capabilities across photo collections
-- Responsive photo grid with thumbnail optimization
+### Testing & Development
+- **TestingPanel**: Comprehensive testing tools for duplicate detection
+- **TestDocumentation**: Built-in documentation and guides
+- Production readiness checks and performance monitoring
 
-## API Integration Design
-**Local Storage:**
-- File System Access API for folder access
-- Web Crypto API for secure file hashing
-- Canvas API for image dimension analysis
-- Object URLs for efficient image display
-
-**OneDrive Integration:**
-- `Microsoft Graph API /me/drive/items` - File and folder operations
-- `Microsoft Graph API /$batch` - Batch request processing
-- `Microsoft Graph API /me/drive/root/search` - Photo search functionality
-- `Microsoft Graph API /me` - User profile information
-- OAuth 2.0 endpoints for authentication and token refresh
-
-## Testing & Quality Assurance
-
-### Comprehensive File Format Support
-- **Standard Formats**: JPEG, PNG, GIF with full browser support
-- **Modern Formats**: WebP (widely supported), AVIF (emerging), HEIC (Safari only)
-- **Legacy Formats**: BMP, TIFF, ICO with varying browser support
-- **Graceful Degradation**: Unsupported formats are detected and skipped with user feedback
-- **File Type Detection**: Both MIME type and file extension analysis for robust format detection
-
-### Folder Structure Testing
-- **Deep Nesting**: Support for multi-level directory traversal (5+ levels deep)
-- **Special Characters**: Unicode support for international filenames and folder names
-- **Path Preservation**: Maintains original folder hierarchy information for organization
-- **Large Collections**: Tested with 100+ files across complex folder structures
-- **Memory Management**: Efficient handling of large file sets without browser crashes
-
-### Edge Case Handling
-- **Corrupted Files**: Graceful error handling for damaged or invalid image files
-- **Zero-byte Files**: Detection and proper handling of empty files
-- **Permission Issues**: Clear error messages for access-denied scenarios  
-- **Network Failures**: Robust error handling for OneDrive connection issues
-- **Memory Constraints**: Progress tracking and chunked processing for large datasets
-
-### Performance & Reliability Testing
-- **Large File Support**: Files over 10MB handled efficiently with progress indication
-- **Batch Operations**: Concurrent processing with configurable limits to prevent browser overload
-- **Thumbnail Generation**: Optimized image scaling with fallback for problematic files
-- **Hash Calculation**: Fast SHA-256 hashing for duplicate detection with timeout protection
-- **Memory Cleanup**: Proper disposal of object URLs to prevent memory leaks
-
-## Testing Features
-
-### Integrated Testing Panel
-- **Real-time Statistics**: Live file type and folder structure analysis
-- **Performance Monitoring**: Memory usage and processing speed tracking
-- **Interactive Test Suite**: Guided testing scenarios with completion tracking
-- **Comprehensive Documentation**: Step-by-step test procedures with expected results
-- **Test Data Generation**: Recommendations for creating diverse test datasets
-
-### Console Logging & Diagnostics
-- **Detailed Processing Logs**: Step-by-step file processing information
-- **Error Tracking**: Comprehensive error reporting with context
-- **Performance Metrics**: Processing times and success/failure rates  
-- **File Analysis**: Automatic categorization of loaded files by type and location
-- **Duplicate Detection Insights**: Detailed similarity analysis and reasoning
-
+## Design Direction
 
 ### Visual Tone & Identity
-- **Emotional Response**: Modern cloud-native experience with enterprise reliability
-- **Design Personality**: Clean, Microsoft Fluent-inspired with subtle animations
-- **Visual Metaphors**: Cloud storage, batch processing, intelligent organization
-- **Simplicity Spectrum**: Progressive disclosure with power-user features available
+- **Emotional Response**: Professional confidence with approachable usability
+- **Design Personality**: Clean, modern, and systematically organized
+- **Visual Metaphors**: File organization, cloud connectivity, intelligent automation
+- **Simplicity Spectrum**: Sophisticated functionality with intuitive interface
+
+### Component Design System
+- **Consistent Patterns**: All components follow established design patterns
+- **Shadcn Integration**: Leverages shadcn/ui component library for consistency
+- **Responsive Design**: All components adapt gracefully across device sizes
+- **Accessibility**: Full keyboard navigation and screen reader support
 
 ### Color Strategy
-- **Color Scheme Type**: Microsoft-inspired blue palette with accent colors
-- **Primary Color**: Microsoft blue (oklch(0.47 0.12 264)) for brand consistency
-- **Secondary Colors**: Light grays and whites for clean backgrounds
-- **Accent Color**: Bright blue for interactive elements and progress states
-- **Color Psychology**: Blue conveys trust and cloud reliability
-- **Category Colors**: User-customizable colors for personal organization
+- **Color Scheme Type**: Professional monochromatic with accent colors
+- **Primary Color**: Indigo (#6366f1) - reliability and professionalism
+- **Secondary Colors**: Neutral grays for content areas
+- **Accent Color**: Orange (#f97316) for warnings and duplicates
+- **Success/Error Colors**: Green/red for feedback states
 
 ### Typography System
-- **Font Pairing Strategy**: Inter for modern, cloud-native aesthetic
-- **Typographic Hierarchy**: Clear distinction between headings, body, and metadata
-- **Font Personality**: Clean, readable, enterprise-friendly
-- **Typography Consistency**: Microsoft design language alignment
+- **Font Family**: Inter - modern, readable, professional
+- **Typographic Hierarchy**: Clear distinction between headings, body text, and UI labels
+- **Font Weights**: 400 (normal), 500 (medium), 600 (semibold), 700 (bold)
+- **Consistent Sizing**: Systematic font size scale across all components
 
-### UI Elements & Component Selection
-- **Component Usage**: shadcn/ui components with Microsoft Fluent influences
-- **Photo Grid**: Responsive masonry with thumbnail loading optimization
-- **Progress Indicators**: Multi-stage progress for batch operations
-- **Category System**: Color-coded cards with drag-and-drop organization
-- **Batch Selection**: Advanced selection with filtering capabilities
+## Technical Architecture
 
-### Implementation Considerations
+### Component Structure
+```
+src/
+├── components/
+│   ├── ui/              # Shadcn UI components
+│   ├── ProviderSelection.tsx
+│   ├── OneDriveAuth.tsx
+│   ├── AppHeader.tsx
+│   ├── ProgressBar.tsx
+│   ├── SearchAndFilter.tsx
+│   ├── CategoriesGrid.tsx
+│   ├── PhotoLoader.tsx
+│   ├── PhotosGrid.tsx
+│   ├── DuplicatesReview.tsx
+│   ├── PhotoComparison.tsx
+│   ├── ActionButtons.tsx
+│   ├── EmptyState.tsx
+│   ├── TestingPanel.tsx
+│   ├── TestDocumentation.tsx
+│   ├── ErrorBoundary.tsx
+│   └── LoadingState.tsx
+├── hooks/
+│   └── usePhotoStorage.ts  # Main data management hook
+├── services/
+│   ├── local.ts           # Local file system service
+│   └── onedrive.ts        # OneDrive integration service
+├── lib/
+│   ├── config.ts          # Application configuration
+│   ├── logger.ts          # Logging utilities
+│   ├── sanitizer.ts       # Input sanitization
+│   └── performance.ts     # Performance monitoring
+└── App.tsx                # Main application orchestration
+```
 
-#### Performance Optimization
-- **Parallel Processing**: Configurable concurrency for API requests
-- **Batch Operations**: Microsoft Graph batch API for efficient operations
-- **Caching Strategy**: Local KV storage for categories and user preferences
-- **Image Optimization**: OneDrive thumbnail API with fallback handling
+### Benefits of Modular Architecture
+1. **Maintainability**: Each component has a single responsibility
+2. **Testability**: Components can be unit tested in isolation
+3. **Reusability**: Components can be reused across different contexts
+4. **Scalability**: Easy to add new features without affecting existing code
+5. **Developer Experience**: Easier to understand, modify, and debug
+6. **Type Safety**: Strong typing at component boundaries
 
-#### Cloud Integration
-- **Authentication**: OAuth 2.0 with automatic token refresh
-- **API Resilience**: Retry logic with exponential backoff
-- **Offline Handling**: Graceful degradation when connectivity is limited
-- **Error Recovery**: User-friendly error states with retry options
+### Production Readiness
+- **Error Boundaries**: Graceful error handling and recovery
+- **Performance Monitoring**: Built-in performance tracking
+- **Security**: Input sanitization and rate limiting
+- **Accessibility**: WCAG compliance and keyboard navigation
+- **PWA Support**: Service workers and offline functionality
+- **Analytics**: User interaction tracking and insights
 
-#### Advanced Features
-- **Duplicate Detection**: Multi-algorithm approach with configurable thresholds
-- **Smart Categorization**: Pattern-based auto-organization
-- **Batch Processing**: Progress tracking for long-running operations
-- **Data Persistence**: OneDrive integration with local caching for performance
+## Implementation Considerations
 
-### Security & Privacy
-- **Authentication**: Microsoft OAuth 2.0 with secure token storage using implicit flow
-- **Permissions**: Minimal required OneDrive permissions (Files.ReadWrite)
-- **Data Handling**: No server-side storage, direct client-to-OneDrive communication
-- **Privacy**: User data remains in their OneDrive account
+### Code Quality
+- **TypeScript**: Full type coverage with strict configuration
+- **ESLint**: Code quality and consistency enforcement
+- **Component Props**: Well-defined interfaces for all components
+- **Error Handling**: Comprehensive error boundaries and fallbacks
 
-## Recent Updates
-- **Authentication Fix**: Resolved AADSTS700016 error by implementing Microsoft's implicit OAuth flow
-- **Client ID**: Using Microsoft's sample application credentials for testing
-- **Token Management**: Simplified token handling with implicit flow (no refresh tokens)
-- **Error Handling**: Enhanced error reporting for authentication failures
-- **Production Note**: For production deployment, register a custom Microsoft App
+### Performance
+- **Lazy Loading**: Components loaded as needed
+- **Memoization**: React.memo and useMemo for expensive operations
+- **Bundle Optimization**: Tree shaking and code splitting
+- **Memory Management**: Proper cleanup and memory leak prevention
+
+### Scalability
+- **Provider Pattern**: Easy to add new storage providers
+- **Hook Abstraction**: Business logic separated from UI components
+- **Configuration**: Centralized configuration management
+- **Feature Flags**: Enable/disable features dynamically
+
+## Testing Strategy
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Component interaction testing  
+- **E2E Tests**: Full user workflow testing
+- **Visual Regression**: UI consistency testing
+- **Performance Tests**: Load and stress testing
+
+## Future Enhancements
+- **Plugin System**: Third-party extensions
+- **Advanced AI**: Machine learning for categorization
+- **Collaborative Features**: Multi-user photo management
+- **Mobile App**: Native mobile applications
+- **API Integration**: External service connections
+
+This modular architecture provides a solid foundation for a professional photo management application while maintaining code quality, performance, and user experience standards.
