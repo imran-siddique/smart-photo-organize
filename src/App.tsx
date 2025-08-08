@@ -1,6 +1,11 @@
 import React from 'react'
+import { toast, Toaster } from 'sonner'
+
+// Hooks
 import { usePhotoStorage, UnifiedPhoto, UnifiedCategory } from '@/hooks/usePhotoStorage'
 import { useSmartAlbums } from '@/hooks/useSmartAlbums'
+
+// Components
 import { TestingPanel } from '@/components/TestingPanel'
 import { TestDocumentation } from '@/components/TestDocumentation'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -19,11 +24,12 @@ import { ActionButtons } from '@/components/ActionButtons'
 import { EmptyState } from '@/components/EmptyState'
 import { SmartAlbumsGrid } from '@/components/SmartAlbumsGrid'
 import { SmartAlbumRulesManager } from '@/components/SmartAlbumRulesManager'
+
+// Services and utilities
 import { localPhotoService } from '@/services/local'
 import { log } from '@/lib/logger'
 import { sanitizeTextInput, sanitizeColor, sanitizeFiles, rateLimiter } from '@/lib/sanitizer'
 import { performanceMonitor, memoryMonitor, productionChecks } from '@/lib/performance'
-import { toast, Toaster } from 'sonner'
 
 function PhotoSorter() {
   const {
@@ -88,7 +94,7 @@ function PhotoSorter() {
   const [selectedDuplicateGroups, setSelectedDuplicateGroups] = React.useState<string[]>([])
   const [compareItems, setCompareItems] = React.useState<UnifiedPhoto[]>([])
   const [isCompareOpen, setIsCompareOpen] = React.useState(false)
-  const [duplicateDetectionOpen, setDuplicateDetectionOpen] = React.useState(false)
+
   const [detectionSettings, setDetectionSettings] = React.useState({
     similarityThreshold: 85,
     checkFileSize: true,
@@ -420,7 +426,7 @@ function PhotoSorter() {
     }
   }
 
-  // Testing functions moved to separate utility
+  // Testing functions
   const testAdvancedDuplicateDetection = async () => {
     if (photos.length < 2) {
       toast.error('Need at least 2 photos to test duplicate detection')
@@ -430,7 +436,7 @@ function PhotoSorter() {
     toast.success('Duplicate detection test completed - check console for details')
   }
 
-  const generateTestFiles = async () => {
+  const generateTestFiles = () => {
     console.log('=== Test File Generation Guide ===')
     console.log('Create test files with various duplicates and similar patterns')
     toast.info('Test file generation guide printed to console')
@@ -633,7 +639,7 @@ function PhotoSorter() {
             photosCount={photos.length}
             isDuplicateDetectionRunning={isDuplicateDetectionRunning}
             onLoadPhotos={loadPhotos}
-            onOpenDuplicateDetection={() => setDuplicateDetectionOpen(true)}
+            onOpenDuplicateDetection={() => handleRunDuplicateDetection()}
           />
         )}
 
