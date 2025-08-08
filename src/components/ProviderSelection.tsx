@@ -1,38 +1,38 @@
 import React from 'react'
 import { MicrosoftOutlookLogo, Folder, Upload } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTit
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { sanitizeFiles, rateLimiter } from '@/lib/sanitizer'
+interface ProviderSelectionProps {
 import { log } from '@/lib/logger'
 
 interface ProviderSelectionProps {
   onProviderSelect: (provider: 'local' | 'onedrive') => void
   isFileSystemAccessSupported: boolean
-  onFileSelect: (files: FileList) => void
+  onFileSelect 
 }
 
 export function ProviderSelection({ 
   onProviderSelect, 
   isFileSystemAccessSupported, 
-  onFileSelect 
-}: ProviderSelectionProps) {
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const files = event.target.files
-      if (!files || files.length === 0) {
-        toast.info('No files selected')
-        return
+      // Saniti
+      
+        toast.error('No valid image files found')
+      }
+      if (sanitizedFiles.length !== fi
+      }
+      log.debug('File validation comple
+        saniti
       }
 
-      // Rate limiting
-      if (rateLimiter.isRateLimited('file-upload', 10, 60000)) {
-        toast.error('Too many upload requests. Please wait a moment.')
-        return
-      }
+      
+      log.error('Error handling file input', {}, error as Error)
+    }
 
-      log.info('Processing file input', { fileCount: files.length })
+    <di
+
+          <p className="text-muted-foreground">
       
       // Sanitize and validate files
       const sanitizedFiles = sanitizeFiles(files)
@@ -76,7 +76,7 @@ export function ProviderSelection({
               <TabsTrigger value="local" className="flex items-center gap-2">
                 <Folder className="w-4 h-4" />
                 Local Folder
-              </TabsTrigger>
+                        Choo
               <TabsTrigger value="onedrive" className="flex items-center gap-2">
                 <MicrosoftOutlookLogo className="w-4 h-4" />
                 OneDrive
@@ -88,7 +88,7 @@ export function ProviderSelection({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Folder className="w-5 h-5" />
-                    Local Folder Access
+                          Folder access
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Organize photos directly from your computer
@@ -100,7 +100,7 @@ export function ProviderSelection({
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• Fast local processing</li>
                       <li>• No internet connection required</li>
-                      <li>• Privacy-focused (files stay on your device)</li>
+                  </p>
                       <li>• Advanced duplicate detection</li>
                       <li>• Custom categorization patterns</li>
                     </ul>
@@ -108,15 +108,15 @@ export function ProviderSelection({
                   
                   <div className="flex gap-2">
                     {isFileSystemAccessSupported ? (
-                      <Button 
+                  </div>
                         onClick={() => onProviderSelect('local')} 
                         className="flex-1"
                         size="lg"
                         aria-label="Choose local folder for photo organization"
                       >
-                        <Folder className="w-4 h-4 mr-2" />
+                  <Button 
                         Choose Folder
-                      </Button>
+                    size="lg"
                     ) : (
                       <div className="flex-1 space-y-2">
                         <Button asChild className="w-full" size="lg">
@@ -126,17 +126,17 @@ export function ProviderSelection({
                             <input
                               type="file"
                               multiple
-                              accept="image/*"
+
                               onChange={handleFileInputChange}
                               className="hidden"
                             />
-                          </label>
+
                         </Button>
                         <p className="text-xs text-muted-foreground text-center">
                           Folder access not supported in this browser
-                        </p>
+
                       </div>
-                    )}
+
                   </div>
                 </CardContent>
               </Card>
@@ -144,11 +144,11 @@ export function ProviderSelection({
             
             <TabsContent value="onedrive" className="space-y-4 mt-6">
               <Card>
-                <CardHeader>
+
                   <CardTitle className="flex items-center gap-2">
                     <MicrosoftOutlookLogo className="w-5 h-5" />
                     Microsoft OneDrive
-                  </CardTitle>
+
                   <p className="text-sm text-muted-foreground">
                     Access and organize photos from your OneDrive account
                   </p>
@@ -156,15 +156,15 @@ export function ProviderSelection({
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <h3 className="font-medium">Features:</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
+
                       <li>• Access photos from anywhere</li>
-                      <li>• Parallel cloud processing</li>
+
                       <li>• Automatic sync with OneDrive</li>
                       <li>• Batch operations for large collections</li>
                       <li>• Cross-device accessibility</li>
-                    </ul>
+
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h3 className="font-medium text-sm">Authentication Note:</h3>
                     <p className="text-xs text-muted-foreground">
@@ -172,21 +172,21 @@ export function ProviderSelection({
                     </p>
                   </div>
                   
-                  <Button 
+
                     onClick={() => onProviderSelect('onedrive')}
-                    className="w-full"
+
                     size="lg"
                     aria-label="Connect to Microsoft OneDrive for cloud photo organization"
                   >
                     <MicrosoftOutlookLogo className="w-4 h-4 mr-2" />
                     Connect to OneDrive
-                  </Button>
+
                 </CardContent>
-              </Card>
+
             </TabsContent>
-          </Tabs>
+
         </CardContent>
-      </Card>
+
     </div>
-  )
+
 }
