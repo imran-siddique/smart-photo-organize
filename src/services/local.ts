@@ -112,27 +112,28 @@ class LocalPhotoService {
       // Check if entries method is available (newer browsers)
       if ('entries' in handle && typeof handle.entries === 'function') {
         for await (const [name, fileHandle] of handle.entries()) {
-        if (fileHandle.kind === 'file') {
-          const file = await (fileHandle as FileSystemFileHandle).getFile()
-          const isImage = this.isImageFile(file)
-          
-          console.log(`Found file: ${currentPath}/${name}, Type: ${file.type}, Is Image: ${isImage}`)
-          
-          if (isImage) {
-            try {
-              const photo = await this.createPhotoFromFile(file, currentPath)
-              if (photo) {
-                newPhotos.push(photo)
-                filesInFolder.push(name)
-                console.log(`Added from folder: ${photo.name} in ${currentPath}`)
+          if (fileHandle.kind === 'file') {
+            const file = await (fileHandle as FileSystemFileHandle).getFile()
+            const isImage = this.isImageFile(file)
+            
+            console.log(`Found file: ${currentPath}/${name}, Type: ${file.type}, Is Image: ${isImage}`)
+            
+            if (isImage) {
+              try {
+                const photo = await this.createPhotoFromFile(file, currentPath)
+                if (photo) {
+                  newPhotos.push(photo)
+                  filesInFolder.push(name)
+                  console.log(`Added from folder: ${photo.name} in ${currentPath}`)
+                }
+              } catch (error) {
+                console.error(`Failed to process ${currentPath}/${name}:`, error)
               }
-            } catch (error) {
-              console.error(`Failed to process ${currentPath}/${name}:`, error)
             }
+          } else if (fileHandle.kind === 'directory') {
+            console.log(`Entering subdirectory: ${currentPath}/${name}`)
+            await processDirectory(fileHandle as FileSystemDirectoryHandle, currentPath)
           }
-        } else if (fileHandle.kind === 'directory') {
-          console.log(`Entering subdirectory: ${currentPath}/${name}`)
-          await processDirectory(fileHandle as FileSystemDirectoryHandle, currentPath)
         }
       } else {
         // Fallback for browsers that don't support entries method
