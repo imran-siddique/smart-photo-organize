@@ -1,7 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, RotateCcw } from '@phosphor-icons/react'
 
 interface Props {
   children: ReactNode
@@ -44,7 +43,6 @@ export class ErrorBoundary extends Component<Props, State> {
           <Card className="w-full max-w-lg">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <AlertTriangle className="h-12 w-12 text-destructive" />
               </div>
               <CardTitle>Something went wrong</CardTitle>
             </CardHeader>
@@ -54,7 +52,6 @@ export class ErrorBoundary extends Component<Props, State> {
               </p>
               <div className="flex justify-center space-x-3">
                 <Button onClick={this.resetErrorBoundary} variant="default">
-                  <RotateCcw className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
                 <Button onClick={() => window.location.reload()} variant="outline">
@@ -81,27 +78,4 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children
   }
 }
-      errorInfo,
-      component: 'ErrorBoundary',
-      props: this.props
-    })
-  }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: null })
-  }
-
-  render() {
-    if (this.state.hasError && this.state.error) {
-      const FallbackComponent = this.props.fallback || ErrorFallback
-      return (
-        <FallbackComponent 
-          error={this.state.error} 
-          resetErrorBoundary={this.handleReset}
-        />
-      )
-    }
-
-    return this.props.children
-  }
-}
+      
