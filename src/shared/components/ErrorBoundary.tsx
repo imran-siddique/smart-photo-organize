@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, RotateCcw, Bug } from '@phosphor-icons/react'
+import { Warning, ArrowCounterClockwise, Bug } from '@phosphor-icons/react'
 
 import { logger } from '@/infrastructure/monitoring'
 import { globalErrorHandler, ErrorReporter, AppError, ErrorFactory } from '@/infrastructure/security/error-handling'
@@ -193,7 +193,7 @@ function DefaultErrorFallback({
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <Warning className="h-12 w-12 text-destructive" />
           </div>
           <CardTitle className="text-2xl">Something went wrong</CardTitle>
         </CardHeader>
@@ -210,7 +210,7 @@ function DefaultErrorFallback({
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={resetError} variant="default">
-              <RotateCcw className="h-4 w-4 mr-2" />
+              <ArrowCounterClockwise className="h-4 w-4 mr-2" />
               Try Again
             </Button>
             
@@ -292,11 +292,11 @@ export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
 ) {
-  const WrappedComponent = React.forwardRef<any, P>((props, ref) => (
+  const WrappedComponent = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>
-      <Component {...props} ref={ref} />
+      <Component {...props} />
     </ErrorBoundary>
-  ))
+  )
   
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`
   

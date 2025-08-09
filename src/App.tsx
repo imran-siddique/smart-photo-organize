@@ -44,7 +44,7 @@ function PhotoSorterApp() {
         productionChecks.checkEnvironment()
         productionChecks.checkPerformance()
       } catch (error) {
-        logger.warn('Production checks failed', {}, error as Error)
+        logger.warn('Production checks failed', { error: error as Error })
       }
     }
 
@@ -108,7 +108,7 @@ function PhotoSorterApp() {
           onAuthenticate={authenticateOneDrive}
           onBack={() => switchProvider('local')}
           onLogout={logoutOneDrive}
-          error={error}
+          error={error || undefined}
           user={oneDriveUser}
           isAuthenticated={isOneDriveAuthenticated}
         />
@@ -233,7 +233,9 @@ function PhotoSorterApp() {
             fileTypeStats={{}}
             folderStats={{}}
             onTestDuplicates={() => {}}
-            onRunAdvancedDuplicateTest={() => Promise.resolve()}
+            onRunAdvancedDuplicateTest={(_thresholds: number[], _methods: string[]) => 
+              Promise.resolve([])
+            }
             onGenerateTestFiles={() => {}}
             isTestingInProgress={false}
           />

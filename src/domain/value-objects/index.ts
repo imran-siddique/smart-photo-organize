@@ -63,10 +63,10 @@ export class SimilarityScore {
 
 export class PhotoPath {
   private constructor(
-    private readonly fullPath: string,
-    private readonly filename: string,
-    private readonly directory: string,
-    private readonly extension: string
+    private readonly _fullPath: string,
+    private readonly _filename: string,
+    private readonly _directory: string,
+    private readonly _extension: string
   ) {}
 
   static fromString(path: string): PhotoPath {
@@ -81,45 +81,45 @@ export class PhotoPath {
   }
 
   get fullPath(): string {
-    return this.fullPath
+    return this._fullPath
   }
 
   get filename(): string {
-    return this.filename
+    return this._filename
   }
 
   get directory(): string {
-    return this.directory
+    return this._directory
   }
 
   get extension(): string {
-    return this.extension
+    return this._extension
   }
 
   get nameWithoutExtension(): string {
-    const lastDot = this.filename.lastIndexOf('.')
-    return lastDot === -1 ? this.filename : this.filename.substring(0, lastDot)
+    const lastDot = this._filename.lastIndexOf('.')
+    return lastDot === -1 ? this._filename : this._filename.substring(0, lastDot)
   }
 
   isImageFile(): boolean {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'svg', 'heic', 'raw', 'cr2', 'nef', 'arw']
-    return imageExtensions.includes(this.extension)
+    return imageExtensions.includes(this._extension)
   }
 
   equals(other: PhotoPath): boolean {
-    return this.fullPath === other.fullPath
+    return this._fullPath === other.fullPath
   }
 }
 
 export class ColorTheme {
   private constructor(
-    private readonly primary: string,
-    private readonly secondary: string,
-    private readonly accent: string
+    private readonly _primary: string,
+    private readonly _secondary: string,
+    private readonly _accent: string
   ) {
-    this.validateHexColor(primary, 'primary')
-    this.validateHexColor(secondary, 'secondary') 
-    this.validateHexColor(accent, 'accent')
+    this.validateHexColor(_primary, 'primary')
+    this.validateHexColor(_secondary, 'secondary') 
+    this.validateHexColor(_accent, 'accent')
   }
 
   static fromHex(primary: string, secondary: string, accent: string): ColorTheme {
@@ -133,15 +133,15 @@ export class ColorTheme {
   }
 
   get primary(): string {
-    return this.primary
+    return this._primary
   }
 
   get secondary(): string {
-    return this.secondary
+    return this._secondary
   }
 
   get accent(): string {
-    return this.accent
+    return this._accent
   }
 }
 

@@ -1,5 +1,22 @@
 // Shared TypeScript types and interfaces
 
+// Import and re-export domain entities
+import { 
+  PhotoEntity, 
+  CategoryEntity, 
+  DuplicateGroupEntity,
+  DuplicateDetectionMethod
+} from '../../domain/entities'
+import { DateRange } from '../../domain/value-objects'
+
+export type { 
+  PhotoEntity, 
+  CategoryEntity, 
+  DuplicateGroupEntity,
+  DuplicateDetectionMethod,
+  DateRange
+}
+
 export * from '../../domain/entities'
 export * from '../../domain/value-objects'
 

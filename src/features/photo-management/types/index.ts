@@ -1,5 +1,8 @@
 // Photo management feature types
 
+import { PhotoEntity, CategoryEntity } from '../../../domain/entities'
+import { DateRange } from '../../../domain/value-objects'
+
 export interface PhotoManagementState {
   photos: PhotoEntity[]
   filteredPhotos: PhotoEntity[]

@@ -1,6 +1,6 @@
 // Photo management service implementation
 
-import { PhotoEntity, CategoryEntity } from '../../../domain/entities'
+import { PhotoEntity, CategoryEntity, PhotoMetadata } from '../../../domain/entities'
 import { PhotoPath, FileSize } from '../../../domain/value-objects'
 import { PhotoFilter, PhotoSort, PhotoLoadOptions, PhotoOperationResult } from '../types'
 import { logger, performanceMonitor, memoryMonitor } from '../../../infrastructure/monitoring'
@@ -76,7 +76,10 @@ export class PhotoManagementService {
       
       return loadedPhotos
     } catch (error) {
-      logger.error('Photo loading failed', { source }, error as Error)
+      logger.error('Photo loading failed', { 
+        source, 
+        error: error as Error 
+      })
       throw ErrorFactory.processingFailed('photo loading', error as Error)
     }
   }
@@ -94,7 +97,10 @@ export class PhotoManagementService {
       try {
         return await this.processFile(file, options)
       } catch (error) {
-        logger.warn('Failed to process file', { filename: file.name }, error as Error)
+        logger.warn('Failed to process file', { 
+          filename: file.name, 
+          error: error as Error 
+        })
         return null
       }
     })
@@ -129,35 +135,41 @@ export class PhotoManagementService {
     }
 
     const fileSize = FileSize.fromBytes(file.size)
-    const photo: PhotoEntity = {
+    let photoData = {
       id: generateId('photo'),
       name: photoPath.filename,
       path: photoPath.fullPath,
       size: file.size,
       type: file.type,
       lastModified: file.lastModified,
-      metadata: undefined,
-      preview: undefined,
-      hash: undefined
+      metadata: undefined as PhotoMetadata | undefined,
+      preview: undefined as string | undefined,
+      hash: undefined as string | undefined
     }
 
     if (options.generateThumbnails) {
       try {
-        photo.preview = await this.generateThumbnail(file)
+        photoData.preview = await this.generateThumbnail(file)
       } catch (error) {
-        logger.warn('Thumbnail generation failed', { filename: file.name }, error as Error)
+        logger.warn('Thumbnail generation failed', { 
+          filename: file.name, 
+          error: error as Error 
+        })
       }
     }
 
     if (options.includeMetadata) {
       try {
-        photo.metadata = await this.extractMetadata(file)
+        photoData.metadata = await this.extractMetadata(file)
       } catch (error) {
-        logger.warn('Metadata extraction failed', { filename: file.name }, error as Error)
+        logger.warn('Metadata extraction failed', { 
+          filename: file.name, 
+          error: error as Error 
+        })
       }
     }
 
-    return photo
+    return photoData as PhotoEntity
   }
 
   /**

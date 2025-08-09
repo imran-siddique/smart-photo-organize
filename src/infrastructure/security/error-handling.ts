@@ -211,7 +211,10 @@ export class GlobalErrorHandler {
 
     // Authentication errors
     this.registerHandler(ERROR_CODES.AUTH_FAILED, (error) => {
-      logger.error(`Authentication failed: ${error.message}`, error.context, error.originalError)
+      logger.error(`Authentication failed: ${error.message}`, { 
+        context: error.context, 
+        originalError: error.originalError 
+      })
       return {
         message: 'Authentication failed. Please sign in again.',
         severity: 'error',
@@ -232,7 +235,10 @@ export class GlobalErrorHandler {
 
     // Network errors
     this.registerHandler(ERROR_CODES.NETWORK_ERROR, (error) => {
-      logger.warn(`Network error: ${error.message}`, error.context, error.originalError)
+      logger.warn(`Network error: ${error.message}`, { 
+        context: error.context, 
+        originalError: error.originalError 
+      })
       return {
         message: 'Network connection issue. Please check your internet connection and try again.',
         severity: 'warning',
@@ -254,7 +260,10 @@ export class GlobalErrorHandler {
 
     // Default handler for unhandled error codes
     this.registerHandler('DEFAULT', (error) => {
-      logger.error(`Unhandled error: ${error.message}`, error.context, error.originalError)
+      logger.error(`Unhandled error: ${error.message}`, { 
+        context: error.context, 
+        originalError: error.originalError 
+      })
       return {
         message: 'An unexpected error occurred. Please try again.',
         severity: 'error',
