@@ -192,7 +192,7 @@ export function usePhotoStorage() {
           return
         }
       } catch (error) {
-        if (error.name === 'AbortError') {
+        if (error instanceof Error && error.name === 'AbortError') {
           return // User cancelled
         }
         console.error('Error loading photos:', error)

@@ -16,7 +16,17 @@ export interface OneDriveItem {
   lastModifiedDateTime: string;
   downloadUrl?: string;
   thumbnails?: {
+    small?: {
+      url: string;
+      width: number;
+      height: number;
+    };
     medium?: {
+      url: string;
+      width: number;
+      height: number;
+    };
+    large?: {
       url: string;
       width: number;
       height: number;
