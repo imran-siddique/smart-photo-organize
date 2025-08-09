@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, RotateCcw, Bug } from '@phosphor-icons/react'
 
-import { logger, globalErrorHandler, ErrorReporter, AppError, ErrorFactory } from '@/infrastructure/security/error-handling'
+import { logger } from '@/infrastructure/monitoring'
+import { globalErrorHandler, ErrorReporter, AppError, ErrorFactory } from '@/infrastructure/security/error-handling'
 import { APP_CONFIG } from '@/shared/constants'
 
 interface ErrorBoundaryState {
