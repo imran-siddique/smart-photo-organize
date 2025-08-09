@@ -4,7 +4,7 @@ import { errorReporting } from '@/lib/performance'
 
 interface Props {
   children: ReactNode
-  fallback?: React.ComponentType<any>
+  fallback?: React.ComponentType<{ error: Error; resetErrorBoundary: () => void }>
 }
 
 interface State {

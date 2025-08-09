@@ -215,7 +215,7 @@ export function SmartAlbumsGrid({
 
                       {/* Preview Photos */}
                       <div className="grid grid-cols-3 gap-1 aspect-[3/2] bg-muted rounded overflow-hidden">
-                        {album.photos.slice(0, 3).map((photo, index) => (
+                        {album.photos.slice(0, 3).map((photo) => (
                           <div key={photo.id} className="relative overflow-hidden bg-background">
                             <img
                               src={photo.thumbnailUrl || photo.url}

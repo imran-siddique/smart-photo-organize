@@ -253,8 +253,9 @@ export function usePhotoStorage() {
       return false
     } catch (error) {
       console.error('OneDrive callback error:', error)
-      setError(error.message)
-      toast.error(error.message)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error'
+      setError(errorMessage)
+      toast.error(errorMessage)
       return false
     }
   }

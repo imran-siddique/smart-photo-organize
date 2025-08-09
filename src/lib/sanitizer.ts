@@ -9,6 +9,7 @@ export function sanitizeFileName(fileName: string): string {
   return fileName
     .trim()
     // Remove or replace potentially dangerous characters
+    // eslint-disable-next-line no-control-regex
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
     // Limit length
     .substring(0, 255)

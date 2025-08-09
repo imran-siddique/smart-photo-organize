@@ -6,10 +6,10 @@
     "scripts": {
         "dev": "vite",
         "kill": "fuser -k 5000/tcp",
-        "build": "tsc -b --noCheck && vite build",
+        "build": "tsc --noEmit && vite build",
         "build:production": "NODE_ENV=production npm run build",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
+        "lint": "eslint . --max-warnings 100",
+        "lint:fix": "eslint . --fix --max-warnings 100",
         "type-check": "tsc --noEmit",
         "test": "echo \"Tests would go here\"",
         "optimize": "vite optimize",

@@ -86,7 +86,8 @@ class LocalPhotoService {
           }
         } catch (error) {
           console.error(`Failed to process ${file.name}:`, error)
-          toast.error(`Failed to process ${file.name}: ${error.message}`)
+          const errorMessage = error instanceof Error ? error.message : 'Unknown processing error'
+          toast.error(`Failed to process ${file.name}: ${errorMessage}`)
         }
       } else {
         console.warn(`Skipped non-image file: ${file.name} (${file.type})`)

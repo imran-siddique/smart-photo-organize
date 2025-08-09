@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle, Circle, Warning, Info } from '@phosphor-icons/react'
+import { CheckCircle, Circle, Info } from '@phosphor-icons/react'
 
 export function TestDocumentation() {
   const [completedTests, setCompletedTests] = React.useState<string[]>([])

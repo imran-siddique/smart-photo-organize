@@ -1,10 +1,10 @@
 import React from 'react';
-import { oneDriveService, OneDriveItem, DuplicateGroup, CategoryPattern } from '@/services/onedrive';
+import { oneDriveService, OneDriveItem, DuplicateGroup, CategoryPattern, OneDriveUser } from '@/services/onedrive';
 import { useKV } from '@github/spark/hooks';
 import { toast } from 'sonner';
 
 interface UseOneDriveState {
-  user: any | null;
+  user: OneDriveUser | null;
   items: OneDriveItem[];
   filteredItems: OneDriveItem[];
   categories: CategoryPattern[];
@@ -395,22 +395,26 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
         let keepItem: OneDriveItem;
         
         switch (action) {
-          case 'keep-first':
+          case 'keep-first': {
             keepItem = group.items[0];
             break;
-          case 'keep-largest':
+          }
+          case 'keep-largest': {
             keepItem = group.items.reduce((largest, current) =>
               current.size > largest.size ? current : largest
             );
             break;
-          case 'keep-newest':
+          }
+          case 'keep-newest': {
             keepItem = group.items.reduce((newest, current) =>
               new Date(current.lastModifiedDateTime) > new Date(newest.lastModifiedDateTime) 
                 ? current : newest
             );
             break;
-          default:
+          }
+          default: {
             keepItem = group.items[0];
+          }
         }
 
         // Mark other items for deletion

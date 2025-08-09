@@ -10,10 +10,10 @@ import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { FileText, Folder, Image, ChartBar, TestTube, Download, Lightning, MagnifyingGlass, Target, TrendUp, Clock, CheckCircle } from '@phosphor-icons/react'
-import { TestResult } from '@/hooks/usePhotoStorage'
+import { TestResult, UnifiedPhoto } from '@/hooks/usePhotoStorage'
 
 interface TestingPanelNewProps {
-  photos: any[]
+  photos: UnifiedPhoto[]
   fileTypeStats: Record<string, number>
   folderStats: Record<string, number>
   onTestDuplicates: () => void

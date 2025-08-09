@@ -187,7 +187,7 @@ function PhotoSorter() {
         case 'name':
           comparison = a.name.localeCompare(b.name)
           break
-        case 'date':
+        case 'date': {
           const aTime = typeof a.lastModified === 'string' 
             ? new Date(a.lastModified).getTime()
             : a.lastModified
@@ -196,6 +196,7 @@ function PhotoSorter() {
             : b.lastModified
           comparison = aTime - bTime
           break
+        }
         case 'size':
           comparison = a.size - b.size
           break
@@ -385,15 +386,17 @@ function PhotoSorter() {
         let photoToKeep: UnifiedPhoto
 
         switch (action) {
-          case 'keep-first':
+          case 'keep-first': {
             photoToKeep = group.photos[0]
             break
-          case 'keep-largest':
+          }
+          case 'keep-largest': {
             photoToKeep = group.photos.reduce((prev, current) => 
               prev.size > current.size ? prev : current
             )
             break
-          case 'keep-newest':
+          }
+          case 'keep-newest': {
             photoToKeep = group.photos.reduce((prev, current) => {
               const prevTime = typeof prev.lastModified === 'string' 
                 ? new Date(prev.lastModified).getTime()
@@ -404,6 +407,7 @@ function PhotoSorter() {
               return prevTime > currentTime ? prev : current
             })
             break
+          }
           default:
             continue
         }

@@ -6,14 +6,13 @@ import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
-import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { FileText, Folder, Image, ChartBar, TestTube, Download, Lightning, MagnifyingGlass, Target, TrendUp, Clock, CheckCircle } from '@phosphor-icons/react'
-import { TestResult } from '@/hooks/usePhotoStorage'
+import { TestResult, UnifiedPhoto } from '@/hooks/usePhotoStorage'
 
 interface TestingPanelProps {
-  photos: any[]
+  photos: UnifiedPhoto[]
   fileTypeStats: Record<string, number>
   folderStats: Record<string, number>
   onTestDuplicates: () => void
@@ -28,7 +27,7 @@ export function TestingPanel({
   folderStats,
   onTestDuplicates,
   onRunAdvancedDuplicateTest,
-  onGenerateTestFiles,
+  onGenerateTestFiles: _onGenerateTestFiles,
   isTestingInProgress
 }: TestingPanelProps) {
   const [activeTests, setActiveTests] = React.useState<string[]>([])
@@ -36,7 +35,7 @@ export function TestingPanel({
   const [isAdvancedTesting, setIsAdvancedTesting] = React.useState(false)
   
   // Advanced duplicate detection test settings
-  const [testSettings, setTestSettings] = React.useState({
+  const [testSettings] = React.useState({
     thresholds: [50, 60, 70, 75, 80, 85, 90, 95, 98],
     methods: ['fileSize', 'filename', 'hash'],
     iterations: 3,
@@ -74,7 +73,7 @@ export function TestingPanel({
       const standardResults = await onRunAdvancedDuplicateTest(selectedThresholds, methods)
       
       // Phase 2: Method comparison testing (if enabled)
-      let methodResults: TestResult[] = []
+      const methodResults: TestResult[] = []
       if (testSettings.enableMethodComparison && selectedThresholds.length > 0) {
         console.log('\n🧪 PHASE 2: Detection Method Comparison')
         const testThreshold = selectedThresholds[Math.floor(selectedThresholds.length / 2)] // Use middle threshold
@@ -114,7 +113,7 @@ export function TestingPanel({
       }
       
       // Phase 3: Subset scaling testing (if enabled and enough photos)
-      let scalingResults: TestResult[] = []
+      const scalingResults: TestResult[] = []
       if (testSettings.enableSubsetTesting && photos.length >= 20) {
         console.log('\n🧪 PHASE 3: Scaling Analysis with Photo Subsets')
         const testThreshold = 85 // Use standard threshold for scaling tests
@@ -359,8 +358,6 @@ export function TestingPanel({
         
         // Run tests on this subset with different thresholds
         for (const threshold of benchmarkThresholds) {
-          const startTime = performance.now()
-          
           // Simulate running duplicate detection on subset
           // In real implementation, you'd call the actual detection with the subset
           const methods = ['fileSize', 'filename', 'hash']

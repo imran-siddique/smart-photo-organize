@@ -23,7 +23,12 @@ interface DuplicatesReviewProps {
     checkFilename: boolean
     checkHash: boolean
   }
-  onDetectionSettingsChange: (settings: any) => void
+  onDetectionSettingsChange: (settings: {
+    similarityThreshold: number
+    checkFileSize: boolean
+    checkFilename: boolean
+    checkHash: boolean
+  }) => void
   onToggleGroupSelection: (groupId: string) => void
   onComparePhotos: (photos: UnifiedPhoto[]) => void
   onKeepPhoto: (groupPhotos: UnifiedPhoto[], keepPhoto: UnifiedPhoto) => Promise<void>
@@ -177,7 +182,7 @@ export function DuplicatesReview({
                   {selectedDuplicateGroups.length} groups selected
                 </Badge>
                 
-                <Select onValueChange={(value) => onProcessSelectedGroups(value as any)}>
+                <Select onValueChange={(value) => onProcessSelectedGroups(value as 'keep-first' | 'keep-largest' | 'keep-newest')}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Batch action..." />
                   </SelectTrigger>

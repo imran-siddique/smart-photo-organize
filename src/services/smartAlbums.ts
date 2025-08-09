@@ -301,7 +301,7 @@ class SmartAlbumsService {
           }
           break
 
-        case 'quality.score':
+        case 'quality.score': {
           if (analysis) {
             const value = parseFloat(condition.value)
             matches = condition.operator === 'greater' 
@@ -310,8 +310,9 @@ class SmartAlbumsService {
             conditionConfidence = matches ? analysis.quality.score : 0
           }
           break
+        }
 
-        case 'name':
+        case 'name': {
           if (condition.operator === 'regex') {
             const regex = new RegExp(condition.value)
             matches = regex.test(photo.name)
@@ -320,16 +321,18 @@ class SmartAlbumsService {
           }
           conditionConfidence = matches ? 1.0 : 0
           break
+        }
 
-        case 'size':
+        case 'size': {
           const value = parseInt(condition.value)
           matches = condition.operator === 'greater' 
             ? photo.size > value
             : photo.size < value
           conditionConfidence = matches ? 1.0 : 0
           break
+        }
 
-        case 'lastModified':
+        case 'lastModified': {
           const daysAgo = parseInt(condition.value)
           const date = new Date(photo.lastModified)
           const now = new Date()
@@ -340,6 +343,7 @@ class SmartAlbumsService {
             : diffDays > daysAgo
           conditionConfidence = matches ? 1.0 : 0
           break
+        }
       }
 
       if (matches) {

@@ -31,7 +31,7 @@ export function PhotoComparison({
           </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {compareItems.slice(0, 2).map((photo, index) => (
+          {compareItems.slice(0, 2).map((photo) => (
             <div key={photo.id} className="space-y-4">
               <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                 <img

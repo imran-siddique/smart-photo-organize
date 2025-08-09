@@ -202,7 +202,8 @@ class OneDriveService {
 
       return response as T;
     } catch (error) {
-      if (retries > 0 && error.message.includes('Network')) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (retries > 0 && errorMessage.includes('Network')) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         return this.request(endpoint, options, retries - 1);
       }

@@ -55,15 +55,23 @@ export function SearchAndFilter({
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {categories.map((category, index) => {
-                const categoryValue = category.id || `category-${index}-${category.name || 'unnamed'}`
+                const categoryId = category.id?.trim()
+                const categoryName = category.name?.trim()
+                const categoryValue = categoryId || `category-${index}-${categoryName || 'unnamed'}`
+                
+                // Skip empty values to prevent Select errors
+                if (!categoryValue || categoryValue === 'category--') {
+                  return null
+                }
+                
                 return (
                   <SelectItem key={categoryValue} value={categoryValue}>
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: category.color }}
+                        style={{ backgroundColor: category.color || '#gray' }}
                       />
-                      {category.name || 'Unnamed Category'}
+                      {categoryName || 'Unnamed Category'}
                     </div>
                   </SelectItem>
                 )
