@@ -88,7 +88,7 @@ export function TestingPanel({
               methodResults.push({
                 ...methodResult[0],
                 testType: `Method-${method}`
-              } as any)
+              })
             }
           }
         }
@@ -107,7 +107,7 @@ export function TestingPanel({
             methodResults.push({
               ...comboResult[0],
               testType: `Combo-${combo.join('+')}`
-            } as any)
+            })
           }
         }
       }
@@ -133,7 +133,7 @@ export function TestingPanel({
               ...scaleResult[0],
               testType: `Scale-${size}photos`,
               photoSetSize: size
-            } as any)
+            })
           }
         }
       }
@@ -164,14 +164,14 @@ export function TestingPanel({
       if (methodResults.length > 0) {
         console.log('\n🔍 METHOD COMPARISON:')
         methodResults.forEach(result => {
-          const testType = (result as any).testType || 'Unknown'
+          const testType = (result as TestResult & { testType?: string }).testType || 'Unknown'
           console.log(`   ${testType}: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates - ${result.executionTime}ms`)
         })
         
         const bestMethod = methodResults.reduce((best, current) => 
           current.groupsFound > best.groupsFound ? current : best
         )
-        const bestMethodType = (bestMethod as any).testType || 'Unknown'
+        const bestMethodType = (bestMethod as TestResult & { testType?: string }).testType || 'Unknown'
         console.log(`   🏆 Most effective method combination: ${bestMethodType}`)
       }
       
@@ -179,7 +179,7 @@ export function TestingPanel({
       if (scalingResults.length > 0) {
         console.log('\n📏 SCALING PERFORMANCE:')
         scalingResults.forEach(result => {
-          const photoCount = (result as any).photoSetSize || photos.length
+          const photoCount = (result as TestResult & { photoSetSize?: number }).photoSetSize || photos.length
           const timePerPhoto = (result.executionTime / photoCount).toFixed(2)
           console.log(`   ${photoCount} photos: ${result.groupsFound} groups, ${result.totalDuplicates} duplicates - ${result.executionTime}ms (${timePerPhoto}ms/photo)`)
         })
@@ -386,7 +386,7 @@ export function TestingPanel({
       // Analyze scaling performance
       console.log('\n📈 SCALING ANALYSIS:')
       subsetSizes.forEach(size => {
-        const sizeResults = allResults.filter(r => (r as any).photoSetSize === size)
+        const sizeResults = allResults.filter(r => (r as TestResult & { photoSetSize?: number }).photoSetSize === size)
         if (sizeResults.length > 0) {
           const avgTime = sizeResults.reduce((sum, r) => sum + r.executionTime, 0) / sizeResults.length
           const avgGroups = sizeResults.reduce((sum, r) => sum + r.groupsFound, 0) / sizeResults.length
@@ -430,8 +430,8 @@ export function TestingPanel({
       if (subsetSizes.length > 1) {
         const smallestSize = Math.min(...subsetSizes)
         const largestSize = Math.max(...subsetSizes)
-        const smallResults = allResults.filter(r => (r as any).photoSetSize === smallestSize)
-        const largeResults = allResults.filter(r => (r as any).photoSetSize === largestSize)
+        const smallResults = allResults.filter(r => (r as TestResult & { photoSetSize?: number }).photoSetSize === smallestSize)
+        const largeResults = allResults.filter(r => (r as TestResult & { photoSetSize?: number }).photoSetSize === largestSize)
         
         if (smallResults.length > 0 && largeResults.length > 0) {
           const smallAvgTime = smallResults.reduce((sum, r) => sum + r.executionTime, 0) / smallResults.length
@@ -806,19 +806,19 @@ export function TestingPanel({
                                 <span className="text-sm font-medium">
                                   {result.groupsFound} groups
                                 </span>
-                                {(result as any).testType && (
+                                {(result as TestResult & { testType?: string }).testType && (
                                   <Badge variant="secondary" className="text-xs">
-                                    {(result as any).testType}
+                                    {(result as TestResult & { testType?: string }).testType}
                                   </Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Clock className="w-3 h-3" />
                                 {result.executionTime}ms
-                                {(result as any).photoSetSize && (
+                                {(result as TestResult & { photoSetSize?: number }).photoSetSize && (
                                   <>
                                     <span>•</span>
-                                    <span>{(result as any).photoSetSize} photos</span>
+                                    <span>{(result as TestResult & { photoSetSize?: number }).photoSetSize} photos</span>
                                   </>
                                 )}
                               </div>
@@ -843,8 +843,8 @@ export function TestingPanel({
                               <div>
                                 <span className="text-muted-foreground">Speed:</span>
                                 <div className="font-medium">
-                                  {((result as any).photoSetSize || photos.length) > 0 
-                                    ? (result.executionTime / ((result as any).photoSetSize || photos.length)).toFixed(1) 
+                                  {((result as TestResult & { photoSetSize?: number }).photoSetSize || photos.length) > 0 
+                                    ? (result.executionTime / ((result as TestResult & { photoSetSize?: number }).photoSetSize || photos.length)).toFixed(1) 
                                     : result.executionTime} ms/photo
                                 </div>
                               </div>

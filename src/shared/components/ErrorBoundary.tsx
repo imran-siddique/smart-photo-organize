@@ -7,7 +7,6 @@ import { Warning, ArrowCounterClockwise, Bug } from '@phosphor-icons/react'
 
 import { logger } from '@/infrastructure/monitoring'
 import { globalErrorHandler, ErrorReporter, AppError, ErrorFactory } from '@/infrastructure/security/error-handling'
-import { APP_CONFIG } from '@/shared/constants'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -138,10 +137,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
       return (
         <DefaultErrorFallback
-          error={this.state.error!}
+          error={this.state.error as Error}
           errorInfo={this.state.errorInfo}
           resetError={this.resetError}
-          errorId={this.state.errorId!}
+          errorId={this.state.errorId as string}
           showDetails={this.props.showDetails}
         />
       )
@@ -153,7 +152,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function DefaultErrorFallback({ 
   error, 
-  errorInfo, 
   resetError, 
   errorId,
   showDetails = false 
@@ -281,7 +279,7 @@ function DefaultErrorFallback({
 
 // Hook for functional components to handle errors
 export function useErrorBoundary() {
-  return React.useCallback((error: Error, errorInfo?: any) => {
+  return React.useCallback((error: Error) => {
     // This will trigger the error boundary
     throw error
   }, [])

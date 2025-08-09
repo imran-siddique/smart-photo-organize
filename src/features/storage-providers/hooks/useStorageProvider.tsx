@@ -1,7 +1,7 @@
 // Storage provider hook and provider
 
 import React from 'react'
-import { StorageProvider, StorageProviderType } from '../../../shared/types'
+import { StorageProviderType } from '../../../shared/types'
 
 interface StorageProviderContextValue {
   currentProvider: StorageProviderType | null

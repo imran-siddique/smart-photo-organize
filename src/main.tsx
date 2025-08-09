@@ -13,7 +13,7 @@ import "./index.css"
 // Register service worker in production
 registerServiceWorker()
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root') as HTMLElement).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <App />
    </ErrorBoundary>

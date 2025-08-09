@@ -4,12 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
-import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { FileText, Folder, Image, ChartBar, TestTube, Download, Lightning, MagnifyingGlass, Target, TrendUp, Clock, CheckCircle } from '@phosphor-icons/react'
+import { TestTube, Lightning, Target, Clock, CheckCircle } from '@phosphor-icons/react'
 import { TestResult, UnifiedPhoto } from '@/hooks/usePhotoStorage'
 
 interface TestingPanelNewProps {
@@ -24,12 +22,7 @@ interface TestingPanelNewProps {
 
 export function TestingPanelNew({
   photos,
-  fileTypeStats,
-  folderStats,
-  onTestDuplicates,
-  onRunAdvancedDuplicateTest,
-  onGenerateTestFiles,
-  isTestingInProgress
+  onRunAdvancedDuplicateTest
 }: TestingPanelNewProps) {
   const [testResults, setTestResults] = React.useState<TestResult[]>([])
   const [isAdvancedTesting, setIsAdvancedTesting] = React.useState(false)
@@ -63,7 +56,7 @@ export function TestingPanelNew({
       
       // Generate detailed comparison report
       console.log('\n=== Test Results Comparison ===')
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         console.log(`\nThreshold ${result.threshold}%:`)
         console.log(`  Groups Found: ${result.groupsFound}`)
         console.log(`  Total Duplicates: ${result.totalDuplicates}`)

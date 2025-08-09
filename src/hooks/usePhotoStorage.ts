@@ -137,7 +137,7 @@ export function usePhotoStorage() {
     } else {
       return oneDriveDuplicates.map(convertOneDriveDuplicateToUnified)
     }
-  }, [currentProvider, localDuplicates, oneDriveDuplicates])
+  }, [currentProvider, localDuplicates, oneDriveDuplicates, convertLocalDuplicateToUnified, convertOneDriveDuplicateToUnified])
 
   // Provider switching
   const switchProvider = async (provider: StorageProvider) => {

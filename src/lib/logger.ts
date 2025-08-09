@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 export enum LogLevel {
   ERROR = 0,
   WARN = 1,

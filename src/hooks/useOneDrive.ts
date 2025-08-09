@@ -145,7 +145,7 @@ export function useOneDrive(): UseOneDriveState & UseOneDriveActions {
     toast.success('Logged out from OneDrive');
   };
 
-  const loadItems = async (refresh: boolean = false): Promise<void> => {
+  const loadItems = async (): Promise<void> => {
     if (!oneDriveService.isAuthenticated()) return;
 
     try {

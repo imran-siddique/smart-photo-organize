@@ -126,7 +126,6 @@ class OneDriveService {
       // Parse the fragment from the redirect URL
       const params = new URLSearchParams(authFragment.replace('#', ''));
       const accessToken = params.get('access_token');
-      const expiresIn = params.get('expires_in');
       const error = params.get('error');
       const errorDescription = params.get('error_description');
       
@@ -380,7 +379,7 @@ class OneDriveService {
     const responses = await this.processBatch<OneDriveItem>(requests);
     return responses
       .filter(response => response.status === 200)
-      .map(response => response.body!);
+      .map(response => response.body as OneDriveItem);
   }
 
   async deleteItems(itemIds: string[]): Promise<string[]> {
@@ -484,16 +483,15 @@ class OneDriveService {
       }
     }
 
-    if (options.checkHash && item1.file?.hashes && item2.file?.hashes) {
-      totalChecks++;
-      if (item1.file.hashes.sha1Hash === item2.file.hashes.sha1Hash) {
-        score += 50;
-        reasons.push('Identical content hash');
-      } else if (item1.file.hashes.quickXorHash === item2.file.hashes.quickXorHash) {
-        score += 45;
-        reasons.push('Similar content hash');
+      if (options.checkHash && item1.file?.hashes && item2.file?.hashes) {
+        if (item1.file.hashes.sha1Hash === item2.file.hashes.sha1Hash) {
+          score += 50;
+          reasons.push('Identical content hash');
+        } else if (item1.file.hashes.quickXorHash === item2.file.hashes.quickXorHash) {
+          score += 45;
+          reasons.push('Similar content hash');
+        }
       }
-    }
 
     return { score: Math.min(100, score), reasons };
   }

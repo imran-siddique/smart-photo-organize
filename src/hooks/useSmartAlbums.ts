@@ -68,7 +68,7 @@ export function useSmartAlbums(photos: UnifiedPhoto[]) {
     } finally {
       setIsGenerating(false)
     }
-  }, [photos, customRules, lastGenerated, albums?.length || 0, isGenerating, setAlbums, setLastGenerated])
+  }, [photos, customRules, lastGenerated, albums, isGenerating, setAlbums, setLastGenerated])
 
   // Generate suggested rules based on photo collection
   const generateSuggestedRules = React.useCallback(async () => {

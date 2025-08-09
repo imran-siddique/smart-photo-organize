@@ -56,5 +56,5 @@ export interface PhotoOperationResult {
 }
 
 // Re-export domain entities for convenience
-export type { PhotoEntity, CategoryEntity } from '../../../domain/entities'
+export type { PhotoEntity } from '../../../domain/entities'
 export type { PhotoPath, FileSize } from '../../../domain/value-objects'

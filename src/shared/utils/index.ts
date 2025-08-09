@@ -219,7 +219,7 @@ export async function retry<T>(
     }
   }
   
-  throw lastError!
+  throw lastError as Error
 }
 
 /**
@@ -356,7 +356,7 @@ export function deepClone<T>(obj: T): T {
   
   const cloned = {} as T
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
       cloned[key] = deepClone(obj[key])
     }
   }

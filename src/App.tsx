@@ -64,7 +64,6 @@ function PhotoSorterApp() {
     isOneDriveAuthenticated,
     oneDriveUser,
     authenticateOneDrive,
-    handleOneDriveCallback,
     logoutOneDrive,
     isLoading,
     error,

@@ -698,29 +698,27 @@ function SidebarMenuSubButton({
   )
 }
 
-export {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInput,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSkeleton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
-  useSidebar,
-}
+export { Sidebar }
+export { SidebarContent }
+export { SidebarFooter }
+export { SidebarGroup }
+export { SidebarGroupAction }
+export { SidebarGroupContent }
+export { SidebarGroupLabel }
+export { SidebarHeader }
+export { SidebarInput }
+export { SidebarInset }
+export { SidebarMenu }
+export { SidebarMenuAction }
+export { SidebarMenuBadge }
+export { SidebarMenuButton }
+export { SidebarMenuItem }
+export { SidebarMenuSkeleton }
+export { SidebarMenuSub }
+export { SidebarMenuSubButton }
+export { SidebarMenuSubItem }
+export { SidebarProvider }
+export { SidebarRail }
+export { SidebarSeparator }
+export { SidebarTrigger }
+export { useSidebar }

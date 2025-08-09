@@ -209,7 +209,7 @@ class LocalPhotoService {
   }
 
   private async getImageDimensions(file: File): Promise<{ width: number; height: number } | undefined> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
       

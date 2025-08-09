@@ -1,12 +1,12 @@
 // Photo management service implementation
 
 import { PhotoEntity, CategoryEntity, PhotoMetadata } from '../../../domain/entities'
-import { PhotoPath, FileSize } from '../../../domain/value-objects'
+import { PhotoPath } from '../../../domain/value-objects'
 import { PhotoFilter, PhotoSort, PhotoLoadOptions, PhotoOperationResult } from '../types'
 import { logger, performanceMonitor, memoryMonitor } from '../../../infrastructure/monitoring'
-import { ErrorFactory, AppError } from '../../../infrastructure/security/error-handling'
+import { ErrorFactory } from '../../../infrastructure/security/error-handling'
 import { generateId, sanitizeFiles, chunk, groupBy } from '../../../shared/utils'
-import { APP_CONFIG, SUPPORTED_FILE_TYPES } from '../../../shared/constants'
+import { APP_CONFIG } from '../../../shared/constants'
 
 export class PhotoManagementService {
   private photos: Map<string, PhotoEntity> = new Map()
@@ -134,8 +134,7 @@ export class PhotoManagementService {
       throw ErrorFactory.invalidFileType(file.name, file.type)
     }
 
-    const fileSize = FileSize.fromBytes(file.size)
-    let photoData = {
+    const photoData = {
       id: generateId('photo'),
       name: photoPath.filename,
       path: photoPath.fullPath,
@@ -276,22 +275,22 @@ export class PhotoManagementService {
     // File type filter
     if (filter.fileTypes && filter.fileTypes.length > 0) {
       filtered = filtered.filter(photo => 
-        filter.fileTypes!.some(type => photo.type.includes(type))
+        filter.fileTypes?.some(type => photo.type.includes(type))
       )
     }
 
     // Size range filter
     if (filter.sizeRange) {
       filtered = filtered.filter(photo => 
-        photo.size >= filter.sizeRange!.min && 
-        photo.size <= filter.sizeRange!.max
+        photo.size >= filter.sizeRange?.min! && 
+        photo.size <= filter.sizeRange?.max!
       )
     }
 
     // Date range filter
     if (filter.dateRange) {
       filtered = filtered.filter(photo => 
-        filter.dateRange!.contains(new Date(photo.lastModified))
+        filter.dateRange?.contains(new Date(photo.lastModified))
       )
     }
 
