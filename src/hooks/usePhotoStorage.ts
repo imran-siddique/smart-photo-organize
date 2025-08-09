@@ -49,6 +49,8 @@ export interface TestResult {
   totalDuplicates: number
   executionTime: number
   accuracy?: number
+  testType?: string
+  photoSetSize?: number
 }
 
 export function usePhotoStorage() {

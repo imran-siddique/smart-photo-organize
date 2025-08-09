@@ -152,6 +152,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function DefaultErrorFallback({ 
   error, 
+  errorInfo,
   resetError, 
   errorId,
   showDetails = false 
