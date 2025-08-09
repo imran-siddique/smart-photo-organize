@@ -465,7 +465,7 @@ function PhotoSorter() {
           onAuthenticate={authenticateOneDrive}
           onBack={() => setShowProviderSelection(true)}
           onLogout={logoutOneDrive}
-          error={error || localError}
+          error={error || localError || undefined}
           user={oneDriveUser}
           isAuthenticated={isOneDriveAuthenticated}
         />
