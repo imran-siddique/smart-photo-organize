@@ -1,179 +1,183 @@
-# Photo Sorter - Product Requirements Document
+# Photo Sorter - Professional Photo Organization Platform
 
 ## Core Purpose & Success
-- **Mission Statement**: Provide a professional-grade photo organization tool with AI-powered smart albums, duplicate detection, and intelligent categorization, built with modular architecture for maintainability and scalability.
+- **Mission Statement**: Deliver a scalable, AI-powered photo organization platform with enterprise-grade architecture, supporting multiple storage providers and intelligent categorization
 - **Success Indicators**: 
-  - Clean separation of concerns with reusable components
-  - AI-powered photo organization that learns from user patterns
-  - Easy to extend and maintain codebase
-  - Enhanced developer experience with type-safe interfaces
-  - Production-ready performance and reliability
-- **Experience Qualities**: Professional, Intelligent, Modular, Maintainable
+  - Modular architecture enabling easy feature additions
+  - Sub-second photo loading and processing
+  - 99.9% uptime reliability for production deployment
+  - Type-safe interfaces across all components
+  - Zero-configuration deployment pipeline
+- **Experience Qualities**: Professional, Intelligent, Scalable
 
 ## Project Classification & Approach
-- **Complexity Level**: Complex Application (advanced AI functionality with modular architecture)
-- **Primary User Activity**: Creating and Managing (photo organization with AI assistance and multiple provider support)
-- **Architecture**: Modular component-based design with clear separation of concerns
+- **Complexity Level**: Enterprise Application (production-ready with CI/CD pipeline)
+- **Primary User Activity**: Creating and Managing (professional photo workflows)
+- **Architecture**: Clean Architecture with Domain-Driven Design principles
 
-## Key Architecture Improvements
-- **Component Modularity**: Split monolithic App.tsx into focused, reusable components
-- **AI Integration**: Smart albums service with content analysis and pattern recognition
-- **Clear Interfaces**: Each component has well-defined props interfaces
-- **Separation of Concerns**: UI components separated from business logic
-- **Reusability**: Components designed to be easily extended and reused
-- **Type Safety**: Full TypeScript support with proper type definitions
+## Infrastructure & Deployment Architecture
 
-## Essential Features & Components
+### Core Infrastructure Layers
+1. **Presentation Layer** (`/components`)
+   - UI components with strict separation of concerns
+   - Feature-based component organization
+   - Shared UI primitives in `/components/ui`
+   
+2. **Application Layer** (`/features`)
+   - Feature modules with co-located logic
+   - Domain-specific business rules
+   - Inter-feature communication patterns
 
-### AI-Powered Smart Albums
-- **SmartAlbumsGrid**: Display AI-generated smart albums with statistics
-- **SmartAlbumRulesManager**: Create and manage custom smart album rules
-- Content-based analysis (people, nature, architecture, events)
-- Metadata-based organization (size, date, quality)
-- Pattern recognition for filename and folder structures
-- Suggested rules based on photo collection patterns
-- Auto-updating albums when new photos are added
+3. **Domain Layer** (`/domain`)
+   - Core business entities and value objects
+   - Domain services and repository interfaces
+   - Business rule validation
 
-### Core UI Components
-- **ProviderSelection**: Handle local/OneDrive provider choice with file input
-- **OneDriveAuth**: Manage Microsoft authentication flow
-- **AppHeader**: Application header with user info, navigation, and smart albums toggle
-- **ProgressBar**: Visual progress indication for operations
-- **SearchAndFilter**: Photo search, category filtering, and sorting controls
+4. **Infrastructure Layer** (`/infrastructure`)
+   - External service implementations
+   - Storage adapters and providers
+   - Third-party integrations
 
-### Photo Management Components
-- **PhotoLoader**: Handle photo loading from different providers
-- **PhotosGrid**: Display photos in responsive grid with selection
-- **EmptyState**: Graceful handling when no photos are loaded
-- **ActionButtons**: Primary action buttons for photo operations
+5. **Shared Layer** (`/shared`)
+   - Cross-cutting concerns
+   - Utilities and constants
+   - Type definitions
 
-### Category Management
-- **CategoriesGrid**: Display and manage photo categories
-- Category creation, editing, and deletion functionality
-- Pattern-based auto-categorization
+### Deployment Strategy
+- **Build Pipeline**: Automated testing, linting, and type checking
+- **Environment Management**: Development, staging, production configurations
+- **Performance Optimization**: Code splitting, lazy loading, bundle analysis
+- **Monitoring**: Error tracking, performance metrics, user analytics
+- **Security**: CSP headers, sanitization, secure authentication
 
-### Duplicate Detection System
-- **DuplicatesReview**: Advanced duplicate detection with multiple algorithms
-- **PhotoComparison**: Side-by-side photo comparison interface
-- Batch processing for duplicate resolution
-- Multiple similarity thresholds and detection methods
+## Essential Features
 
-### Testing & Development
-- **TestingPanel**: Comprehensive testing tools for duplicate detection
-- **TestDocumentation**: Built-in documentation and guides
-- Production readiness checks and performance monitoring
+### Photo Management Core
+- Multi-provider support (Local FileSystem, OneDrive, extensible to others)
+- Batch processing with progress tracking
+- Advanced duplicate detection with configurable algorithms
+- Drag-and-drop photo organization
+
+### AI-Powered Intelligence
+- Smart album generation using content analysis
+- Pattern recognition for automatic categorization
+- Suggested organization rules based on collection patterns
+- Machine learning from user preferences
+
+### Professional Tools
+- Bulk operations with undo capabilities
+- Advanced search and filtering
+- Category management with custom rules
+- Performance monitoring and optimization
 
 ## Design Direction
 
-### Visual Tone & Identity
-- **Emotional Response**: Professional confidence with approachable usability
-- **Design Personality**: Clean, modern, and systematically organized
-- **Visual Metaphors**: File organization, cloud connectivity, intelligent automation
-- **Simplicity Spectrum**: Sophisticated functionality with intuitive interface
+### Visual Identity
+- **Design Personality**: Professional, clean, data-focused interface
+- **Color Strategy**: Monochromatic blue palette with accent colors for actions
+- **Typography System**: Inter font family for optimal readability
+- **Component Consistency**: Shadcn/ui design system with custom extensions
 
-### Component Design System
-- **Consistent Patterns**: All components follow established design patterns
-- **Shadcn Integration**: Leverages shadcn/ui component library for consistency
-- **Responsive Design**: All components adapt gracefully across device sizes
-- **Accessibility**: Full keyboard navigation and screen reader support
+### Performance Requirements
+- Initial load: <2 seconds
+- Photo grid rendering: <100ms for 1000+ items
+- Duplicate detection: Real-time progress with cancellation
+- Memory usage: <500MB for 10,000 photos
 
-### Color Strategy
-- **Color Scheme Type**: Professional monochromatic with accent colors
-- **Primary Color**: Indigo (#6366f1) - reliability and professionalism
-- **Secondary Colors**: Neutral grays for content areas
-- **Accent Color**: Orange (#f97316) for warnings and duplicates
-- **Success/Error Colors**: Green/red for feedback states
+### Accessibility Standards
+- WCAG 2.1 AA compliance
+- Keyboard navigation for all features  
+- Screen reader compatibility
+- High contrast mode support
 
-### Typography System
-- **Font Family**: Inter - modern, readable, professional
-- **Typographic Hierarchy**: Clear distinction between headings, body text, and UI labels
-- **Font Weights**: 400 (normal), 500 (medium), 600 (semibold), 700 (bold)
-- **Consistent Sizing**: Systematic font size scale across all components
+## Technical Implementation
 
-## Technical Architecture
-
-### Component Structure
-```
-src/
-├── components/
-│   ├── ui/              # Shadcn UI components
-│   ├── ProviderSelection.tsx
-│   ├── OneDriveAuth.tsx
-│   ├── AppHeader.tsx
-│   ├── ProgressBar.tsx
-│   ├── SearchAndFilter.tsx
-│   ├── CategoriesGrid.tsx
-│   ├── PhotoLoader.tsx
-│   ├── PhotosGrid.tsx
-│   ├── DuplicatesReview.tsx
-│   ├── PhotoComparison.tsx
-│   ├── ActionButtons.tsx
-│   ├── EmptyState.tsx
-│   ├── TestingPanel.tsx
-│   ├── TestDocumentation.tsx
-│   ├── ErrorBoundary.tsx
-│   └── LoadingState.tsx
-├── hooks/
-│   └── usePhotoStorage.ts  # Main data management hook
-├── services/
-│   ├── local.ts           # Local file system service
-│   └── onedrive.ts        # OneDrive integration service
-├── lib/
-│   ├── config.ts          # Application configuration
-│   ├── logger.ts          # Logging utilities
-│   ├── sanitizer.ts       # Input sanitization
-│   └── performance.ts     # Performance monitoring
-└── App.tsx                # Main application orchestration
-```
-
-### Benefits of Modular Architecture
-1. **Maintainability**: Each component has a single responsibility
-2. **Testability**: Components can be unit tested in isolation
-3. **Reusability**: Components can be reused across different contexts
-4. **Scalability**: Easy to add new features without affecting existing code
-5. **Developer Experience**: Easier to understand, modify, and debug
-6. **Type Safety**: Strong typing at component boundaries
-
-### Production Readiness
-- **Error Boundaries**: Graceful error handling and recovery
-- **Performance Monitoring**: Built-in performance tracking
-- **Security**: Input sanitization and rate limiting
-- **Accessibility**: WCAG compliance and keyboard navigation
-- **PWA Support**: Service workers and offline functionality
-- **Analytics**: User interaction tracking and insights
-
-## Implementation Considerations
+### State Management
+- React hooks for local component state
+- Custom hooks for complex business logic
+- Spark KV store for persistent user data
+- Error boundaries for graceful failure handling
 
 ### Code Quality
-- **TypeScript**: Full type coverage with strict configuration
-- **ESLint**: Code quality and consistency enforcement
-- **Component Props**: Well-defined interfaces for all components
-- **Error Handling**: Comprehensive error boundaries and fallbacks
+- TypeScript strict mode enabled
+- ESLint with custom rules for consistency
+- Automated testing for core features
+- Code splitting for optimal bundle sizes
 
-### Performance
-- **Lazy Loading**: Components loaded as needed
-- **Memoization**: React.memo and useMemo for expensive operations
-- **Bundle Optimization**: Tree shaking and code splitting
-- **Memory Management**: Proper cleanup and memory leak prevention
+### Security
+- Input sanitization for all user data
+- Rate limiting for API operations
+- Secure authentication flows
+- Content Security Policy headers
 
 ### Scalability
-- **Provider Pattern**: Easy to add new storage providers
-- **Hook Abstraction**: Business logic separated from UI components
-- **Configuration**: Centralized configuration management
-- **Feature Flags**: Enable/disable features dynamically
+- Lazy loading for large photo collections
+- Virtual scrolling for performance
+- Web Workers for intensive operations
+- Progressive enhancement patterns
 
-## Testing Strategy
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: Component interaction testing  
-- **E2E Tests**: Full user workflow testing
-- **Visual Regression**: UI consistency testing
-- **Performance Tests**: Load and stress testing
+## Edge Cases & Production Considerations
 
-## Future Enhancements
-- **Plugin System**: Third-party extensions
-- **Advanced AI**: Machine learning for categorization
-- **Collaborative Features**: Multi-user photo management
-- **Mobile App**: Native mobile applications
-- **API Integration**: External service connections
+### Error Scenarios
+- Network failures during OneDrive operations
+- Invalid file types and corrupted images
+- Memory exhaustion with large collections
+- Authentication token expiration
 
-This modular architecture provides a solid foundation for a professional photo management application while maintaining code quality, performance, and user experience standards.
+### Performance Optimization
+- Image lazy loading and progressive enhancement
+- Efficient duplicate detection algorithms
+- Memory management for large datasets
+- Background processing for non-critical operations
+
+### Monitoring & Analytics
+- Performance metrics collection
+- Error tracking and alerting
+- User behavior analytics
+- System health monitoring
+
+## Implementation Roadmap
+
+### Phase 1: Infrastructure Setup
+- Clean architecture implementation
+- Build and deployment pipeline
+- Core component library
+- Testing framework setup
+
+### Phase 2: Feature Migration
+- Migrate existing features to new architecture
+- Implement error boundaries and logging
+- Performance optimization
+- Security hardening
+
+### Phase 3: Production Deployment
+- CI/CD pipeline activation
+- Monitoring and alerting setup
+- Performance testing and optimization
+- Security audit and compliance
+
+### Phase 4: Enhancement
+- Advanced AI features
+- Additional storage providers
+- Enterprise features
+- Mobile responsiveness improvements
+
+## Success Metrics
+
+### Technical Metrics
+- Bundle size < 2MB gzipped
+- Lighthouse score > 90
+- TypeScript coverage > 95%
+- Test coverage > 80%
+
+### User Experience Metrics
+- Photo loading time < 1 second
+- Zero crashes in production
+- Sub-second search results
+- Intuitive user workflows
+
+### Business Metrics  
+- Feature adoption rates
+- User retention and engagement
+- Performance improvement over time
+- Scalability headroom for growth
